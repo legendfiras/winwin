@@ -29,11 +29,18 @@ function run(cmd, args) {
   });
 }
 
+async function listImages(dir) {
+  const names = await readdir(dir);
+  return names.filter((name) => IMAGE_EXT.has(extname(name).toLowerCase()));
+}
+
 async function findImageDir() {
   for (const dir of CANDIDATE_DIRS) {
     try {
       const info = await stat(dir);
-      if (info.isDirectory()) return dir;
+      if (!info.isDirectory()) continue;
+      const files = await listImages(dir);
+      if (files.length > 0) return { dir, files };
     } catch {
       // try next
     }
@@ -42,17 +49,12 @@ async function findImageDir() {
 }
 
 async function main() {
-  const dir = await findImageDir();
-  if (!dir) {
+  const found = await findImageDir();
+  if (!found) {
     console.error('No local image folder found. Put files in assets/products or New folder/downloaded_images');
     process.exit(1);
   }
-
-  const files = (await readdir(dir)).filter((name) => IMAGE_EXT.has(extname(name).toLowerCase()));
-  if (files.length === 0) {
-    console.error(`No images in ${dir}`);
-    process.exit(1);
-  }
+  const { dir, files } = found;
 
   console.log(`Uploading ${files.length} images from ${dir} to r2://${BUCKET}/${PREFIX}/`);
 

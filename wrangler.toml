@@ -1,12 +1,4 @@
-# Cloudflare Pages (Vite SPA) + R2 product images
+# Cloudflare Pages (Vite SPA). Product photos are copied into dist/img at build time.
 name = "winwin"
 compatibility_date = "2026-09-04"
 pages_build_output_dir = "dist"
-
-[assets]
-not_found_handling = "single-page-application"
-
-# wrangler r2 object put winwin-product-images/products/<file> --file <path>
-[[r2_buckets]]
-binding = "PRODUCT_IMAGES"
-bucket_name = "winwin-product-images"
