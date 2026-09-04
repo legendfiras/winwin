@@ -1,0 +1,83 @@
+{
+  "name": "StoreTransaction",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer id"
+    },
+    "customer_email": {
+      "type": "string",
+      "description": "Customer email snapshot"
+    },
+    "customer_name": {
+      "type": "string",
+      "description": "Customer name snapshot"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "PRODUCT_PURCHASE",
+        "LOYALTY_CARD"
+      ],
+      "description": "Transaction category"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "PROCESSING",
+        "APPROVED",
+        "REJECTED"
+      ],
+      "default": "PENDING",
+      "description": "Workflow status"
+    },
+    "amount_usd": {
+      "type": "number",
+      "description": "Order or card amount in USD"
+    },
+    "product_ids": {
+      "type": "string",
+      "description": "JSON array of product ids"
+    },
+    "product_summary": {
+      "type": "string",
+      "description": "Human-readable product or order notes"
+    },
+    "calculated_points": {
+      "type": "number",
+      "default": 0,
+      "description": "Points to award on approval (recomputed at approve time)"
+    },
+    "submitted_by": {
+      "type": "string",
+      "enum": [
+        "CUSTOMER",
+        "ADMIN"
+      ],
+      "description": "Who created the pending transaction"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Admin session id that reviewed this transaction"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "description": "ISO datetime of review"
+    },
+    "reject_reason": {
+      "type": "string",
+      "description": "Reason if rejected"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Optional client idempotency key"
+    }
+  },
+  "required": [
+    "customer_id",
+    "type",
+    "status"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "SlideShow",
+  "type": "object",
+  "properties": {
+    "image_url": {
+      "type": "string",
+      "description": "Slide image URL"
+    },
+    "title": {
+      "type": "string",
+      "description": "Slide title"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Display order"
+    }
+  },
+  "required": [
+    "image_url"
+  ]
+}

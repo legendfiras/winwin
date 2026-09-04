@@ -1,0 +1,50 @@
+{
+  "name": "LoyaltyMembership",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer id"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "EXPIRED",
+        "DEACTIVATED"
+      ],
+      "description": "Membership status"
+    },
+    "activated_at": {
+      "type": "string",
+      "description": "ISO datetime of activation"
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "ISO datetime of expiry"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "PURCHASE_APPROVAL",
+        "MANUAL",
+        "MIGRATION"
+      ],
+      "description": "How this membership was created"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Admin session id"
+    },
+    "related_transaction_id": {
+      "type": "string",
+      "description": "StoreTransaction id when activated via purchase approval"
+    }
+  },
+  "required": [
+    "customer_id",
+    "status",
+    "activated_at",
+    "expires_at"
+  ]
+}

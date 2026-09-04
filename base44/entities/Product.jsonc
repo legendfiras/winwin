@@ -1,0 +1,53 @@
+{
+  "name": "Product",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Product name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Product description"
+    },
+    "price": {
+      "type": "number",
+      "description": "Product price in USD"
+    },
+    "points_price": {
+      "type": "number",
+      "description": "Points needed to redeem this item. Always product price USD * 100 ($1 = 100 points)."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "home_appliance",
+        "home_essentials",
+        "phone_accessories",
+        "toys",
+        "new_gadgets",
+        "must_have",
+        "beauty_care",
+        "fans",
+        "shavers",
+        "silkapils",
+        "hair_care"
+      ],
+      "description": "Product category"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Product image URL"
+    },
+    "in_stock": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether product is in stock"
+    }
+  },
+  "required": [
+    "name",
+    "price",
+    "category"
+  ]
+}

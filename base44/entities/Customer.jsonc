@@ -1,0 +1,87 @@
+{
+  "name": "Customer",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "description": "Customer full name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Customer email"
+    },
+    "mobile": {
+      "type": "string",
+      "description": "Customer mobile number"
+    },
+    "country": {
+      "type": "string",
+      "description": "Customer country"
+    },
+    "points": {
+      "type": "number",
+      "default": 0,
+      "description": "Cached points balance; ledger is source of truth"
+    },
+    "has_winwin_card": {
+      "type": "boolean",
+      "default": false,
+      "description": "Denormalized active-card flag; expiry must also be checked server-side"
+    },
+    "card_number": {
+      "type": "string",
+      "description": "WinWin card number"
+    },
+    "card_purchase_date": {
+      "type": "string",
+      "description": "Date the WinWin card was activated"
+    },
+    "card_expiry_date": {
+      "type": "string",
+      "description": "Date the WinWin card expires (30 months after activation for new cards)"
+    },
+    "card_renewal_reminder_sent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the 2-day expiry reminder has been sent"
+    },
+    "last_signin_date": {
+      "type": "string",
+      "description": "Last daily sign-in date"
+    },
+    "draw_entries": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of draw entries"
+    },
+    "wallet_balance": {
+      "type": "number",
+      "default": 0,
+      "description": "Virtual USD wallet balance for ambassadors"
+    },
+    "password": {
+      "type": "string",
+      "description": "Legacy plaintext password; cleared after migration"
+    },
+    "ambassador_code": {
+      "type": "string",
+      "description": "Ambassador referral code (optional)"
+    },
+    "is_ambassador": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether customer is an ambassador"
+    },
+    "signup_bonus_granted": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the one-time +10 signup bonus has been granted"
+    }
+  },
+  "required": [
+    "full_name",
+    "email",
+    "mobile",
+    "country"
+  ]
+}

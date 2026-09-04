@@ -1,0 +1,37 @@
+{
+  "name": "CustomerAuth",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer id"
+    },
+    "password_hash": {
+      "type": "string",
+      "description": "bcrypt password hash"
+    },
+    "reset_token_hash": {
+      "type": "string",
+      "description": "SHA-256 of the current reset token"
+    },
+    "reset_expires_at": {
+      "type": "string",
+      "description": "ISO datetime when the reset token expires"
+    },
+    "must_reset_password": {
+      "type": "boolean",
+      "default": false,
+      "description": "Force a password change after legacy migration"
+    }
+  },
+  "required": [
+    "customer_id",
+    "password_hash"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}

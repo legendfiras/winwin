@@ -1,0 +1,54 @@
+{
+  "name": "PointsLedger",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer id"
+    },
+    "points_amount": {
+      "type": "number",
+      "description": "Signed points delta (negative for debits)"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "SIGNUP_BONUS",
+        "DAILY_LOGIN",
+        "PURCHASE_REWARD",
+        "LOYALTY_CARD_BONUS",
+        "PRODUCT_REDEMPTION",
+        "MANUAL_ADD",
+        "MANUAL_REMOVE",
+        "MIGRATION"
+      ],
+      "description": "Ledger entry type"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source or reference label"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable reason"
+    },
+    "created_by_admin_id": {
+      "type": "string",
+      "description": "Admin session id when a manual or approval change was made"
+    },
+    "related_transaction_id": {
+      "type": "string",
+      "description": "Related StoreTransaction or order id"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "description": "Application-level unique key to prevent duplicate rewards"
+    }
+  },
+  "required": [
+    "customer_id",
+    "points_amount",
+    "type",
+    "idempotency_key"
+  ]
+}

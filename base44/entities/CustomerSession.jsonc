@@ -1,0 +1,29 @@
+{
+  "name": "CustomerSession",
+  "type": "object",
+  "properties": {
+    "customer_id": {
+      "type": "string",
+      "description": "Customer id"
+    },
+    "token_hash": {
+      "type": "string",
+      "description": "SHA-256 of the opaque session token"
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "ISO datetime of session expiry"
+    }
+  },
+  "required": [
+    "customer_id",
+    "token_hash",
+    "expires_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}

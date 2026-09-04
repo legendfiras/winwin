@@ -1,0 +1,28 @@
+{
+  "name": "AdminSession",
+  "type": "object",
+  "properties": {
+    "token_hash": {
+      "type": "string",
+      "description": "SHA-256 of the opaque admin session token"
+    },
+    "expires_at": {
+      "type": "string",
+      "description": "ISO datetime of session expiry"
+    },
+    "label": {
+      "type": "string",
+      "description": "Display label for audit rows"
+    }
+  },
+  "required": [
+    "token_hash",
+    "expires_at"
+  ],
+  "rls": {
+    "create": false,
+    "read": false,
+    "update": false,
+    "delete": false
+  }
+}
