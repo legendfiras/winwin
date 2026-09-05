@@ -14,10 +14,10 @@
     --winwin-cream: #FAF6EF;
     --winwin-beige: #F5EDE1;
     --winwin-cream-dark: #F5EDE1;
-    --winwin-burgundy: #641616;
-    --winwin-burgundy-dark: #3E090B;
-    --winwin-burgundy-soft: rgba(100, 22, 22, 0.10);
-    --winwin-burgundy-medium: rgba(100, 22, 22, 0.18);
+    --winwin-burgundy: #9F1D35;
+    --winwin-burgundy-dark: #7A1528;
+    --winwin-burgundy-soft: rgba(159, 29, 53, 0.10);
+    --winwin-burgundy-medium: rgba(159, 29, 53, 0.18);
     --winwin-gold: #C7952E;
     --winwin-gold-dark: #9F7226;
     --winwin-gold-light: #D9B76C;
@@ -26,8 +26,8 @@
     --winwin-muted: #81776E;
     --winwin-border: rgba(50, 26, 25, 0.10);
 
-    --brand: 0 64% 24%;
-    --brand-hover: 357 75% 14%;
+    --brand: 349 69% 37%;
+    --brand-hover: 349 71% 28%;
     --soft-orange: 28 100% 96%;
     --success: 142 64% 32%;
     --warning: 32 95% 40%;
@@ -38,7 +38,7 @@
     --card-foreground: 3 32% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 3 32% 15%;
-    --primary: 0 64% 24%;
+    --primary: 349 69% 37%;
     --primary-foreground: 36 100% 98%;
     --secondary: 36 38% 94%;
     --secondary-foreground: 3 32% 15%;
@@ -50,8 +50,8 @@
     --destructive-foreground: 0 0% 98%;
     --border: 32 18% 88%;
     --input: 32 18% 88%;
-    --ring: 0 64% 24%;
-    --chart-1: 0 64% 24%;
+    --ring: 349 69% 37%;
+    --chart-1: 349 69% 37%;
     --chart-2: 160 84% 39%;
     --chart-3: 220 70% 50%;
     --chart-4: 43 74% 66%;
@@ -76,7 +76,7 @@
     --card-foreground: 3 32% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 3 32% 15%;
-    --primary: 0 64% 24%;
+    --primary: 349 69% 37%;
     --primary-foreground: 36 100% 98%;
     --secondary: 36 38% 94%;
     --secondary-foreground: 3 32% 15%;
@@ -88,8 +88,8 @@
     --destructive-foreground: 0 0% 98%;
     --border: 32 18% 88%;
     --input: 32 18% 88%;
-    --ring: 0 64% 24%;
-    --chart-1: 0 64% 24%;
+    --ring: 349 69% 37%;
+    --chart-1: 349 69% 37%;
     --chart-2: 160 84% 39%;
     --chart-3: 220 70% 50%;
     --chart-4: 43 74% 66%;
