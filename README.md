@@ -28,18 +28,22 @@ VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
 
 Run the app: `npm run dev`
 
-**Cloudflare (Pages + R2 images)**
+**Cloudflare (Workers + static assets)**
 
-Product photos and `Product_export.csv` are gitignored. Upload images with Wrangler, then deploy the site:
+Git deploys must use `npx wrangler deploy` (not `wrangler pages deploy`). Wrangler builds Vite into `dist/` and uploads it as static assets.
+
+Dashboard settings:
+- Build command: leave empty (Wrangler runs `npm run build`)
+- Deploy command: `npx wrangler deploy`
+- Root directory: `/`
+
+Local deploy after `npx wrangler login`:
 
 ```
-npx wrangler login
-npm run cf:bucket
-npm run cf:images
 npm run cf:deploy
 ```
 
-Images are stored in the `winwin-product-images` R2 bucket and served at `/img/<filename>`.
+Product photos in `public/img` are copied into the build and served at `/img/<filename>`. The original CSV and download folder stay gitignored. Optional R2 upload: `npm run cf:bucket` then `npm run cf:images` (requires R2 enabled on the account).
 
 **Publish to Base44**
 

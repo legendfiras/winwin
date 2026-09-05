@@ -1,4 +1,13 @@
-# Cloudflare Pages (Vite SPA). Product photos are copied into dist/img at build time.
+# Cloudflare Workers + Vite static assets.
+# Dashboard deploy command must be: npx wrangler deploy
+# (not wrangler pages deploy). pages_build_output_dir would make this a Pages
+# project and wrangler deploy then fails with "Missing entry-point".
 name = "winwin"
 compatibility_date = "2026-09-04"
-pages_build_output_dir = "dist"
+
+[build]
+command = "npm run build"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

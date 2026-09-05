@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "cf:bucket": "wrangler r2 bucket create winwin-product-images",
     "cf:images": "node scripts/upload-product-images.mjs",
-    "cf:deploy": "npm run build && wrangler pages deploy dist --project-name winwin --commit-dirty=true"
+    "cf:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.46",
