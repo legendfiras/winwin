@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,18 +26,15 @@ export default function AdminDashboard() {
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list(),
+    queryFn: () => store.products.list(),
   });
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: async () => {
-      const rows = await base44.entities.Customer.list();
-      return (rows || []).map(({ password, ...rest }) => rest);
-    },
+    queryFn: async () => [],
   });
   const { data: settings = [] } = useQuery({
     queryKey: ['appSettings'],
-    queryFn: () => base44.entities.AppSettings.list(),
+    queryFn: () => store.settings.list(),
   });
 
   React.useEffect(() => {
@@ -47,12 +44,7 @@ export default function AdminDashboard() {
 
   const saveFeedback = async () => {
     setSaving(true);
-    const existing = settings.find(s => s.setting_key === 'customer_feedback');
-    if (existing) {
-      await base44.entities.AppSettings.update(existing.id, { setting_value: feedbackText });
-    } else {
-      await base44.entities.AppSettings.create({ setting_key: 'customer_feedback', setting_value: feedbackText });
-    }
+    await store.settings.upsert('customer_feedback', feedbackText);
     qc.invalidateQueries({ queryKey: ['appSettings'] });
     toast.success('Feedback saved!');
     setSaving(false);

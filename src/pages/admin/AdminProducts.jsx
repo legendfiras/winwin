@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,21 +40,21 @@ export default function AdminProducts() {
 
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-created_date'),
+    queryFn: () => store.products.list(),
   });
 
   const createMut = useMutation({
-    mutationFn: d => base44.entities.Product.create(d),
+    mutationFn: d => store.products.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); close(); toast.success('Product added!'); },
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Product.update(id, data),
+    mutationFn: ({ id, data }) => store.products.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); close(); toast.success('Product updated!'); },
   });
 
   const deleteMut = useMutation({
-    mutationFn: id => base44.entities.Product.delete(id),
+    mutationFn: id => store.products.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product deleted!'); },
   });
 
@@ -74,7 +74,7 @@ export default function AdminProducts() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await store.upload(file);
     setForm(f => ({ ...f, image_url: file_url }));
     setUploading(false);
     toast.success('Image uploaded!');

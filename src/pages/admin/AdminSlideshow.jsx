@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
+import { productImageSrc } from '@/lib/productImage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,11 +20,11 @@ export default function AdminSlideshow() {
 
   const { data: slides = [] } = useQuery({
     queryKey: ['slideshow'],
-    queryFn: () => base44.entities.SlideShow.list('order'),
+    queryFn: () => store.slides.list(),
   });
 
   const deleteMut = useMutation({
-    mutationFn: id => base44.entities.SlideShow.delete(id),
+    mutationFn: id => store.slides.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['slideshow'] }); toast.success('Slide removed!'); },
   });
 
@@ -31,8 +32,8 @@ export default function AdminSlideshow() {
     e.preventDefault();
     if (!imageFile) return toast.error('Please select an image');
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file: imageFile });
-    await base44.entities.SlideShow.create({
+    const { file_url } = await store.upload(imageFile);
+    await store.slides.create({
       image_url: file_url,
       title,
       order: slides.length + 1,
@@ -57,7 +58,7 @@ export default function AdminSlideshow() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {slides.map(slide => (
           <Card key={slide.id} className="overflow-hidden">
-            <img src={slide.image_url} alt={slide.title} className="w-full h-48 object-cover" />
+            <img src={productImageSrc(slide.image_url)} alt={slide.title} className="w-full h-48 object-cover" />
             <CardContent className="p-4 flex justify-between items-center">
               <span className="font-medium">{slide.title || 'No title'}</span>
               <Button size="sm" variant="destructive" onClick={() => deleteMut.mutate(slide.id)}>

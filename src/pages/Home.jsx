@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import Navbar from '@/components/Navbar';
 import MobileHeader from '@/components/MobileHeader';
 import HeroSlideshow from '@/components/HeroSlideshow';
@@ -50,10 +50,11 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
-  const { data: products = [], isLoading, refetch } = useQuery({
+  const { data: productsData, isLoading, refetch } = useQuery({
     queryKey: ['products'],
-    queryFn: () => base44.entities.Product.list('-created_date'),
+    queryFn: () => store.products.list(),
   });
+  const products = Array.isArray(productsData) ? productsData : [];
 
   const filtered = products.filter(p => {
     const inCategory = category === 'all' || p.category === category;

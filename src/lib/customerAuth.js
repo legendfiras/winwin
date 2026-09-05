@@ -1,5 +1,3 @@
-import { base44 } from '@/api/base44Client';
-
 const CUSTOMER_KEY = 'winwin_customer';
 const SESSION_KEY = 'winwin_session';
 const ADMIN_KEY = 'winwin_admin';
@@ -76,8 +74,12 @@ export function isCardActive(customer = getCustomer()) {
 }
 
 async function invoke(name, payload) {
-  const res = await base44.functions.invoke(name, payload);
-  return res?.data ?? res;
+  const res = await fetch(`/api/fn/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  return res.json();
 }
 
 export async function invokeCustomer(name, payload = {}) {

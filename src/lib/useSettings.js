@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 
 export function useSettings() {
-  const { data: settingsRaw = [], isLoading } = useQuery({
+  const { data: settingsData, isLoading } = useQuery({
     queryKey: ['appSettings'],
-    queryFn: () => base44.entities.AppSettings.list(),
+    queryFn: () => store.settings.list(),
   });
+  const settingsRaw = Array.isArray(settingsData) ? settingsData : [];
 
   const settings = {};
   settingsRaw.forEach(s => {

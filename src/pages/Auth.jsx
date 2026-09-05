@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { UserPlus, LogIn } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 
 export default function Auth() {
   return (
@@ -99,8 +99,9 @@ function SignUpForm() {
   const [waNumber, setWaNumber] = useState('');
 
   React.useEffect(() => {
-    base44.entities.AppSettings.list().then(settingsList => {
-      const waSetting = settingsList.find(s => s.setting_key === 'whatsapp_number');
+    store.settings.list().then(settingsList => {
+      const list = Array.isArray(settingsList) ? settingsList : [];
+      const waSetting = list.find(s => s.setting_key === 'whatsapp_number');
       const num = (waSetting?.setting_value || '0096178714472').replace(/[^0-9]/g, '').replace(/^0+/, '');
       setWaNumber(num);
     });

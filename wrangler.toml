@@ -1,13 +1,23 @@
-# Cloudflare Workers + Vite static assets.
-# Dashboard deploy command must be: npx wrangler deploy
-# (not wrangler pages deploy). pages_build_output_dir would make this a Pages
-# project and wrangler deploy then fails with "Missing entry-point".
+# Cloudflare Worker + D1 catalog + KV uploads + Vite static assets.
 name = "winwin"
+main = "workers/api.js"
 compatibility_date = "2026-09-04"
+workers_dev = true
 
 [build]
 command = "npm run build"
 
 [assets]
 directory = "./dist"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/img/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "winwin"
+database_id = "6bc71f7e-5f33-4627-a0e8-607aabc9c6c2"
+
+[[kv_namespaces]]
+binding = "IMAGES"
+id = "2224090d2ada49b290b846af15271c92"

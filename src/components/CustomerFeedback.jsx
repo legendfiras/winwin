@@ -1,14 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare } from 'lucide-react';
 
 export default function CustomerFeedback() {
-  const { data: settings = [] } = useQuery({
+  const { data: settingsData } = useQuery({
     queryKey: ['appSettings'],
-    queryFn: () => base44.entities.AppSettings.list(),
+    queryFn: () => store.settings.list(),
   });
+  const settings = Array.isArray(settingsData) ? settingsData : [];
 
   const fb = settings.find(s => s.setting_key === 'customer_feedback');
   const text = fb?.setting_value?.trim();

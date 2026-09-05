@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
+import { productImageSrc } from '@/lib/productImage';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function HeroSlideshow() {
   const [current, setCurrent] = useState(0);
-  const { data: slides = [] } = useQuery({
+  const { data: slidesData } = useQuery({
     queryKey: ['slideshow'],
-    queryFn: () => base44.entities.SlideShow.list('order'),
+    queryFn: () => store.slides.list(),
   });
+  const slides = Array.isArray(slidesData) ? slidesData : [];
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -29,7 +31,7 @@ export default function HeroSlideshow() {
           style={{ opacity: i === current ? 1 : 0 }}
         >
           <img
-            src={slide.image_url}
+            src={productImageSrc(slide.image_url)}
             alt={slide.title || ''}
             className="w-full h-full object-cover"
           />

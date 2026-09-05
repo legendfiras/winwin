@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useSettings } from '@/lib/useSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,20 +12,15 @@ import { toast } from 'sonner';
 
 export default function AdminWinWinCard() {
   const qc = useQueryClient();
-  const { settings, getSetting } = useSettings();
+  const { getSetting } = useSettings();
   const [uploading, setUploading] = useState(false);
 
   async function handleImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const setting = settings['winwin_card_image'];
-    if (setting) {
-      await base44.entities.AppSettings.update(setting.id, { setting_value: file_url });
-    } else {
-      await base44.entities.AppSettings.create({ setting_key: 'winwin_card_image', setting_value: file_url });
-    }
+    const { file_url } = await store.upload(file);
+    await store.settings.upsert('winwin_card_image', file_url);
     qc.invalidateQueries({ queryKey: ['appSettings'] });
     setUploading(false);
     toast.success('WinWin Card image updated!');

@@ -27,9 +27,7 @@ export function productImageSrc(url) {
   return `/img/${filename}`;
 }
 
-export function productImageFallback(event, originalUrl) {
+export function productImageFallback(event) {
   const img = event.currentTarget;
-  if (originalUrl && img.src !== originalUrl) {
-    img.src = originalUrl;
-  }
+  img.style.visibility = 'hidden';
 }

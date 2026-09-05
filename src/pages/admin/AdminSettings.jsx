@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useSettings } from '@/lib/useSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,11 +30,7 @@ export default function AdminSettings() {
 
   async function updateSetting(key, value) {
     const existing = settings[key];
-    if (existing) {
-      await base44.entities.AppSettings.update(existing.id, { setting_value: value });
-    } else {
-      await base44.entities.AppSettings.create({ setting_key: key, setting_value: value });
-    }
+    await store.settings.upsert(key, value);
   }
 
   async function handleSave(e) {

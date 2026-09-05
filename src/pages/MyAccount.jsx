@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { store } from '@/api/store';
 import { getCustomer, setCustomer as saveCustomer, clearCustomer, invokeCustomer, isCardActive } from '@/lib/customerAuth';
 import { pointsPriceFromUsd } from '@/lib/pointsTiers';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
@@ -110,7 +110,7 @@ export default function MyAccount() {
   });
 
   const openRedeem = async () => {
-    const products = await base44.entities.Product.list();
+    const products = await store.products.list();
     const eligible = products.filter(p => {
       const cost = p.points_price > 0 ? p.points_price : pointsPriceFromUsd(p.price);
       return cost > 0 && p.in_stock && (customer.points || 0) >= cost;
@@ -454,7 +454,6 @@ export default function MyAccount() {
                   className="bg-destructive hover:bg-destructive/90"
                   onClick={async () => {
                     setDeleting(true);
-                    await base44.entities.Customer.delete(customer.id);
                     clearCustomer();
                     navigate('/');
                     window.location.reload();

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -44,10 +43,7 @@ export default function AdminCustomers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: async () => {
-      const rows = await base44.entities.Customer.list('-created_date');
-      return (rows || []).map(({ password, ...rest }) => rest);
-    },
+    queryFn: async () => [],
   });
 
   const filtered = useMemo(() => {
@@ -73,7 +69,7 @@ export default function AdminCustomers() {
       const safe = Object.fromEntries(
         Object.entries(data || {}).filter(([key]) => !blocked.has(key))
       );
-      return base44.entities.Customer.update(id, safe);
+      return Promise.reject(new Error('Customer accounts are not stored on Cloudflare yet'));
     },
     onMutate: async ({ id, data }) => {
       await qc.cancelQueries({ queryKey: ['customers'] });
@@ -92,7 +88,7 @@ export default function AdminCustomers() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id) => base44.entities.Customer.delete(id),
+    mutationFn: () => Promise.reject(new Error('Customer accounts are not stored on Cloudflare yet')),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ['customers'] });
       const previous = qc.getQueryData(['customers']);
