@@ -1,15 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getCustomer, isCardActive } from '@/lib/customerAuth';
-import { useSettings } from '@/lib/useSettings';
 import HeroCardVisual from '@/components/home/HeroCardVisual';
 import HeroBenefits from '@/components/home/HeroBenefits';
 import '@/components/home/winwin-hero.css';
 
 export default function WinWinHero({ customer: customerProp }) {
   const customer = customerProp === undefined ? getCustomer() : customerProp;
-  const { getSetting } = useSettings();
-  const cardImage = getSetting('winwin_card_image', '/winwin-membership-card.png');
   const member = isCardActive(customer);
   const cta = member
     ? { href: '/winwin-card', label: 'View membership' }
@@ -35,7 +32,7 @@ export default function WinWinHero({ customer: customerProp }) {
             <span className="hero-cta-arrow" aria-hidden="true">→</span>
           </Link>
         </div>
-        <HeroCardVisual cardImage={cardImage} />
+        <HeroCardVisual />
         <div className="hero-benefits">
           <HeroBenefits />
         </div>

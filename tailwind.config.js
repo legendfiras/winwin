@@ -23,6 +23,16 @@ module.exports = {
   		},
   		colors: {
   			background: 'hsl(var(--background))',
+  			winwin: {
+  				cream: 'var(--winwin-cream)',
+  				beige: 'var(--winwin-beige)',
+  				burgundy: 'var(--winwin-burgundy)',
+  				'burgundy-dark': 'var(--winwin-burgundy-dark)',
+  				gold: 'var(--winwin-gold)',
+  				'gold-light': 'var(--winwin-gold-light)',
+  				muted: 'var(--winwin-muted)',
+  				text: 'var(--winwin-text)'
+  			},
   			foreground: 'hsl(var(--foreground))',
   			card: {
   				DEFAULT: 'hsl(var(--card))',
