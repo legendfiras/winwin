@@ -107,7 +107,7 @@ export default function CartDrawer() {
                 <span>Total</span>
                 <span className="tabular-nums">{formatMoney(totals.total)}</span>
               </div>
-              <Button className="h-12 w-full rounded-[10px] bg-green-700 text-white hover:bg-green-800" onClick={openCheckout}>
+              <Button className="h-12 w-full rounded-[10px]" onClick={openCheckout}>
                 <MessageCircle className="h-5 w-5" />
                 Checkout
               </Button>

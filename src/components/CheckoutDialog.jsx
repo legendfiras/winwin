@@ -235,7 +235,7 @@ export default function CheckoutDialog() {
               Save this address for future orders
             </label>
           ) : null}
-          <Button type="submit" className="h-12 w-full rounded-[10px] bg-green-700 text-white hover:bg-green-800" disabled={busy || items.length === 0}>
+          <Button type="submit" className="h-12 w-full rounded-[10px]" disabled={busy || items.length === 0}>
             <MessageCircle className="h-5 w-5" />
             {busy ? 'Submitting...' : 'Submit order'}
           </Button>

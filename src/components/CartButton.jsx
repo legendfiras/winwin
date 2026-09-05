@@ -10,7 +10,7 @@ export default function CartButton({ className = '' }) {
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="default"
       size="icon"
       className={cn('relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-[10px]', className)}
       onClick={openCart}
@@ -18,7 +18,7 @@ export default function CartButton({ className = '' }) {
     >
       <ShoppingCart className="h-5 w-5" />
       {count > 0 ? (
-        <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[11px] font-bold leading-none text-primary-foreground">
+        <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--winwin-gold)] px-1 text-[11px] font-bold leading-none text-[var(--winwin-burgundy-dark)]">
           {count > 99 ? '99+' : count}
         </span>
       ) : null}

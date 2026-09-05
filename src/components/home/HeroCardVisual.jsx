@@ -24,8 +24,8 @@ export default function HeroCardVisual({ cardImage }) {
             className="hero-card"
             src={src}
             alt="WinWin membership rewards card"
-            width={900}
-            height={500}
+            width={1356}
+            height={818}
             fetchPriority="high"
             decoding="async"
             onError={(event) => {
@@ -39,13 +39,6 @@ export default function HeroCardVisual({ cardImage }) {
           <div className="hero-podium-top" />
         </div>
       </div>
-      <p className="hero-script" aria-hidden="true">
-        Rewards
-        <br />
-        That Value
-        <br />
-        You
-      </p>
     </div>
   );
 }

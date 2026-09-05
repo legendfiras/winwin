@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Great+Vibes&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,10 +9,9 @@
     --font-heading: 'Poppins', sans-serif;
     --font-body: 'Inter', sans-serif;
     --font-display: 'Cormorant Garamond', serif;
-    --font-script: 'Great Vibes', cursive;
 
-    --winwin-burgundy: #74151F;
-    --winwin-burgundy-dark: #591018;
+    --winwin-burgundy: #531516;
+    --winwin-burgundy-dark: #3f0f10;
     --winwin-gold: #C3953C;
     --winwin-gold-dark: #9F7226;
     --winwin-gold-light: #E7C77D;
@@ -21,8 +20,8 @@
     --winwin-text: #25221F;
     --winwin-muted: #756F68;
 
-    --brand: 24 100% 50%;
-    --brand-hover: 22 100% 46%;
+    --brand: 359 60% 20%;
+    --brand-hover: 358 62% 15%;
     --soft-orange: 28 100% 96%;
     --success: 142 64% 32%;
     --warning: 32 95% 40%;
@@ -33,7 +32,7 @@
     --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
-    --primary: 24 100% 50%;
+    --primary: 359 60% 20%;
     --primary-foreground: 0 0% 100%;
     --secondary: 28 100% 96%;
     --secondary-foreground: 0 0% 9%;
@@ -45,8 +44,8 @@
     --destructive-foreground: 0 0% 98%;
     --border: 30 16% 91%;
     --input: 30 16% 91%;
-    --ring: 24 100% 50%;
-    --chart-1: 24 100% 50%;
+    --ring: 359 60% 20%;
+    --chart-1: 359 60% 20%;
     --chart-2: 160 84% 39%;
     --chart-3: 220 70% 50%;
     --chart-4: 43 74% 66%;
@@ -71,7 +70,7 @@
     --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
-    --primary: 24 100% 50%;
+    --primary: 359 60% 20%;
     --primary-foreground: 0 0% 100%;
     --secondary: 28 100% 96%;
     --secondary-foreground: 0 0% 9%;
@@ -83,8 +82,8 @@
     --destructive-foreground: 0 0% 98%;
     --border: 30 16% 91%;
     --input: 30 16% 91%;
-    --ring: 24 100% 50%;
-    --chart-1: 24 100% 50%;
+    --ring: 359 60% 20%;
+    --chart-1: 359 60% 20%;
     --chart-2: 160 84% 39%;
     --chart-3: 220 70% 50%;
     --chart-4: 43 74% 66%;
