@@ -16,6 +16,7 @@ export default function WinWinHero({ customer: customerProp }) {
 
   return (
     <section className="winwin-hero" aria-label="WinWin membership">
+      <div className="hero-mist" aria-hidden="true" />
       <div className="hero-content">
         <div className="hero-copy">
           <p className="hero-eyebrow">More rewards / A brighter tomorrow</p>
@@ -32,7 +33,7 @@ export default function WinWinHero({ customer: customerProp }) {
             <span className="hero-cta-arrow" aria-hidden="true">→</span>
           </Link>
         </div>
-        <HeroCardVisual />
+        <HeroCardVisual cardNumber={customer?.card_number} />
         <div className="hero-benefits">
           <HeroBenefits />
         </div>

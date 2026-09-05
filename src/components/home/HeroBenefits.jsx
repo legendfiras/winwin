@@ -2,7 +2,7 @@ import React from 'react';
 import { Gift, Coins, Crown } from 'lucide-react';
 
 const BENEFITS = [
-  { icon: Gift, label: 'Exclusive Deals' },
+  { icon: Gift, label: 'Exclusive Offers' },
   { icon: Coins, label: 'Earn Points' },
   { icon: Crown, label: 'Premium Benefits' },
 ];
