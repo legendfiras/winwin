@@ -11,7 +11,6 @@ export function whatsappUrl(rawNumber, text) {
 
 export function cartWhatsAppMessage(items, options = {}) {
   const { subtotal, discount, total, ambassadorCode, hasCard, orderId, customerName, delivery } = options;
-  const { subtotal, discount, total, ambassadorCode, hasCard, orderId, customerName } = options;
   const lines = ['Hi WinWin 👋', ''];
   if (orderId) lines.push(`Order ${orderDisplayId(orderId)}`, '');
   if (customerName) lines.push(`Name: ${customerName}`);
