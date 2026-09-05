@@ -41,7 +41,7 @@ export default function ResetPassword() {
       setSessionToken(data.session_token);
       setCustomer(data.customer);
       toast.success("Password updated. You're signed in.");
-      window.location.href = "/";
+      window.location.href = data.customer?.profile_review_required ? '/review-profile' : '/';
     } catch (err) {
       setError(err.message || "Failed to reset password");
     } finally {

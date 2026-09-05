@@ -21,3 +21,9 @@ database_id = "6bc71f7e-5f33-4627-a0e8-607aabc9c6c2"
 [[kv_namespaces]]
 binding = "IMAGES"
 id = "2224090d2ada49b290b846af15271c92"
+
+# Optional customer email (password setup + verification):
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put MAIL_FROM
+# [vars]
+# APP_ORIGIN = "https://winwin.firaskotob508.workers.dev""

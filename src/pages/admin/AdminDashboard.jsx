@@ -77,7 +77,7 @@ export default function AdminDashboard() {
       </div>
       <div className="flex flex-wrap gap-3 mb-6">
         <Button asChild>
-          <Link to="/admin/pending">Review pending transactions</Link>
+          <Link to="/admin/pending">Review orders</Link>
         </Button>
         <Button
           variant="outline"

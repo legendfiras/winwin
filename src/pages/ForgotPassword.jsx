@@ -63,7 +63,8 @@ export default function ForgotPassword() {
                 </Button>
               </form>
             )}
-            <p className="text-sm text-center mt-4">
+            <p className="text-sm text-center mt-4 space-y-2">
+              <Link to="/recover-account" className="block text-primary hover:underline">Can&apos;t access your old email?</Link>
               <Link to="/auth" className="text-primary hover:underline">Back to sign in</Link>
             </p>
           </CardContent>

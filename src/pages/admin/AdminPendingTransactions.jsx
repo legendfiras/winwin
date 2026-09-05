@@ -64,7 +64,7 @@ export default function AdminPendingTransactions() {
 
   return (
     <AdminLayout>
-      <h1 className="font-heading font-bold text-2xl mb-6">Pending Transactions</h1>
+      <h1 className="font-heading font-bold text-2xl mb-6">Orders</h1>
       <div className="flex gap-2 mb-4 flex-wrap">
         {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map(s => (
           <Button key={s} size="sm" variant={tab === s ? 'default' : 'outline'} onClick={() => setTab(s)}>
@@ -79,8 +79,8 @@ export default function AdminPendingTransactions() {
             <CardContent className="pt-5 space-y-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="font-heading font-semibold">{tx.customer_name}</p>
-                  <p className="text-sm text-muted-foreground">{tx.customer_email}</p>
+                  <p className="font-heading font-semibold">{tx.display_id || tx.id} · {tx.customer_name}</p>
+                  <p className="text-sm text-muted-foreground">{tx.customer_phone || tx.customer_email}</p>
                 </div>
                 {statusBadge(tx.status)}
               </div>
@@ -119,11 +119,25 @@ export default function AdminPendingTransactions() {
           {detail && (
             <div className="space-y-2 text-sm">
               <p><strong>Customer:</strong> {detail.customer_name}</p>
-              <p><strong>Email:</strong> {detail.customer_email}</p>
+              <p><strong>Phone:</strong> {detail.customer_phone || '—'}</p>
+              <p><strong>Email:</strong> {detail.customer_email || '—'}</p>
+              {detail.delivery ? (
+                <p><strong>Delivery:</strong> {[detail.delivery.governorate, detail.delivery.street, detail.delivery.building, detail.delivery.floor].filter(Boolean).join(', ')}{detail.delivery.instructions ? ` — ${detail.delivery.instructions}` : ''}</p>
+              ) : null}
+              <p><strong>Order ID:</strong> {detail.display_id || detail.id}</p>
               <p><strong>Type:</strong> {detail.type}</p>
               <p><strong>Amount:</strong> ${Number(detail.amount_usd || 0).toFixed(2)}</p>
-              <p><strong>Points on approval:</strong> {detail.type === 'LOYALTY_CARD' ? 100 : (detail.calculated_points ?? pointsForPurchaseUsd(detail.amount_usd))}</p>
+              {detail.member_price_requested ? (
+                <p><strong>WinWin price:</strong> requested — confirm 15% off when approving</p>
+              ) : null}
+              <p><strong>Points on approval:</strong> {detail.type === 'LOYALTY_CARD' ? 100 : (detail.calculated_points || pointsForPurchaseUsd(detail.amount_usd))}</p>
               <p><strong>Status:</strong> {detail.status}</p>
+              <p><strong>Items:</strong></p>
+              <ul className="list-disc pl-5">
+                {(detail.items || []).map((item) => (
+                  <li key={`${item.id}-${item.qty}`}>{item.qty}× {item.name} — ${Number(item.line_total || (Number(item.price) || 0) * (Number(item.qty) || 0)).toFixed(2)}</li>
+                ))}
+              </ul>
               <p><strong>Notes:</strong> {detail.product_summary || '—'}</p>
               <p><strong>Submitted:</strong> {detail.created_date ? new Date(detail.created_date).toLocaleString() : '—'}</p>
               <p><strong>Reviewed:</strong> {detail.reviewed_at ? new Date(detail.reviewed_at).toLocaleString() : '—'}</p>

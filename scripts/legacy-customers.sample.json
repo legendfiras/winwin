@@ -1,0 +1,42 @@
+[
+  {
+    "legacy_user_id": "1001",
+    "first_name": "Maya",
+    "last_name": "Haddad",
+    "email": "maya@example.com",
+    "phone": "+96181111111",
+    "points": 2350,
+    "has_winwin_card": true,
+    "card_number": "WW-1001",
+    "card_expiry_date": "2028-01-01"
+  },
+  {
+    "legacy_user_id": "1002",
+    "first_name": "Karim",
+    "last_name": "Nassif",
+    "email": "not-an-email",
+    "phone": "03123456",
+    "points": 80
+  },
+  {
+    "legacy_user_id": "1003",
+    "full_name": "No Email User",
+    "email": "",
+    "phone": "70111222",
+    "points": 40
+  },
+  {
+    "legacy_user_id": "1004",
+    "first_name": "Dup",
+    "last_name": "One",
+    "email": "shared@example.com",
+    "points": 12
+  },
+  {
+    "legacy_user_id": "1005",
+    "first_name": "Dup",
+    "last_name": "Two",
+    "email": "shared@example.com",
+    "points": 9
+  }
+]

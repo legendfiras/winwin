@@ -10,6 +10,8 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
+    "migrate:customers": "node scripts/migrate-customers.mjs",
+    "test:migration": "node scripts/test-migration.mjs",
     "cf:bucket": "wrangler r2 bucket create winwin-product-images",
     "cf:images": "node scripts/upload-images-kv.mjs",
     "cf:images-r2": "node scripts/upload-product-images.mjs",

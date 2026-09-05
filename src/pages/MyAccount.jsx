@@ -3,14 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { store } from '@/api/store';
 import { getCustomer, setCustomer as saveCustomer, clearCustomer, invokeCustomer, isCardActive } from '@/lib/customerAuth';
+import { activationPath } from '@/lib/accountGuards';
 import { pointsPriceFromUsd } from '@/lib/pointsTiers';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
 import { useSettings } from '@/lib/useSettings';
-import Navbar from '@/components/Navbar';
-import MobileHeader from '@/components/MobileHeader';
+import Storefront from '@/components/Storefront';
+import Container from '@/components/Container';
 import PullToRefresh from '@/components/PullToRefresh';
 import WhatsAppButton from '@/components/WhatsAppButton';
-import MobileBottomTab from '@/components/MobileBottomTab';
 import ExpiryReminderBanner from '@/components/ExpiryReminderBanner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +42,8 @@ export default function MyAccount() {
     }
     saveCustomer(data.customer);
     setCustomerState(data.customer);
+    const next = activationPath(data.customer);
+    if (next && next !== '/auth') navigate(next);
   }, [navigate]);
 
   useEffect(() => {
@@ -132,11 +134,9 @@ export default function MyAccount() {
   const cardPurchaseDate = customer.card_purchase_date ? new Date(customer.card_purchase_date).toLocaleDateString() : null;
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <div className="hidden md:block"><Navbar /></div>
-      <MobileHeader title="My Account" backTo="/" />
+    <Storefront>
       <PullToRefresh onRefresh={refreshCustomer}>
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <Container className="max-w-2xl space-y-6 py-8">
           <div className="text-center">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl font-heading font-bold text-primary">
@@ -464,10 +464,9 @@ export default function MyAccount() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
+        </Container>
       </PullToRefresh>
-      <MobileBottomTab />
       <WhatsAppButton />
-    </div>
+    </Storefront>
   );
 }

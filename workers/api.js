@@ -1,3 +1,5 @@
+import { ensureCustomerSchema, handleCustomerFn, customerFromToken, saveCheckoutAddress } from './customers.js';
+
 const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -75,6 +77,274 @@ async function fetchAsset(env, request, pathname) {
   return env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
 }
 
+async function ensureTransactions(env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS store_transactions (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT,
+      customer_email TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      type TEXT NOT NULL DEFAULT 'PRODUCT_PURCHASE',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      amount_usd REAL NOT NULL DEFAULT 0,
+      discount_usd REAL NOT NULL DEFAULT 0,
+      items_json TEXT,
+      product_ids TEXT,
+      product_summary TEXT,
+      calculated_points INTEGER NOT NULL DEFAULT 0,
+      submitted_by TEXT,
+      reviewed_by TEXT,
+      reviewed_at TEXT,
+      reject_reason TEXT,
+      ambassador_code TEXT,
+      member_price_requested INTEGER NOT NULL DEFAULT 0,
+      created_date TEXT,
+      delivery_json TEXT
+    )`,
+  ).run();
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_store_transactions_status ON store_transactions (status, created_date)',
+  ).run();
+  try {
+    await env.DB.prepare('ALTER TABLE store_transactions ADD COLUMN delivery_json TEXT').run();
+  } catch {
+    /* column already exists */
+  }
+}
+
+function roundMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function pointsForPurchaseUsd(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n < 15) return 0;
+  if (n <= 20) return 20;
+  if (n <= 40) return 35;
+  if (n <= 60) return 50;
+  if (n <= 100) return 75;
+  return 100;
+}
+
+function orderDisplayId(id) {
+  return `WW-${String(id || '').slice(0, 8).toUpperCase()}`;
+}
+
+function txFromRow(row) {
+  if (!row) return null;
+  let items = [];
+  try {
+    items = JSON.parse(row.items_json || '[]');
+  } catch {
+    items = [];
+  }
+  let delivery = null;
+  try {
+    delivery = row.delivery_json ? JSON.parse(row.delivery_json) : null;
+  } catch {
+    delivery = null;
+  }
+  return {
+    ...row,
+    amount_usd: Number(row.amount_usd) || 0,
+    discount_usd: Number(row.discount_usd) || 0,
+    calculated_points: Number(row.calculated_points) || 0,
+    member_price_requested: Boolean(row.member_price_requested),
+    items,
+    delivery,
+    display_id: orderDisplayId(row.id),
+  };
+}
+
+async function requireAdminFn(env, body, request) {
+  const token = String(body?.admin_session_token || request.headers.get('X-Admin-Token') || '');
+  if (!token) return null;
+  const hash = await sha256(token);
+  return env.DB.prepare(
+    'SELECT * FROM admin_sessions WHERE token_hash = ? AND expires_at > ?',
+  )
+    .bind(hash, nowIso())
+    .first();
+}
+
+async function submitCheckout(env, body) {
+  const rawItems = Array.isArray(body.items) ? body.items : [];
+  if (rawItems.length === 0) return json({ error: 'Your cart is empty' }, 400);
+  if (rawItems.length > 30) return json({ error: 'Too many items in this order' }, 400);
+
+  const customer_name = String(body.customer_name || '').trim();
+  const customer_phone = String(body.customer_phone || '').replace(/[^\d+]/g, '').trim();
+  const customer_email = String(body.customer_email || '').trim();
+  if (customer_name.length < 2) return json({ error: 'Please enter your name' }, 400);
+  if (customer_phone.replace(/\D/g, '').length < 8) {
+    return json({ error: 'Please enter a valid phone number' }, 400);
+  }
+
+  const address = body.address && typeof body.address === 'object' ? body.address : {};
+  const governorate = String(address.governorate || body.governorate || '').trim();
+  const street = String(address.street || body.street || '').trim();
+  if (!governorate || !street) {
+    return json({ error: 'Please enter your delivery area and street' }, 400);
+  }
+
+  const sessionCustomer = await customerFromToken(env, body.session_token);
+  const customerId = sessionCustomer?.id || '';
+
+  const delivery = {
+    full_name: customer_name,
+    phone: customer_phone,
+    governorate,
+    area: String(address.area || body.area || '').trim(),
+    street,
+    building: String(address.building || body.building || '').trim(),
+    floor: String(address.floor || body.floor || '').trim(),
+    instructions: String(address.instructions || body.instructions || '').trim(),
+  };
+
+  const qtyById = new Map();
+  for (const item of rawItems) {
+    const id = String(item?.id || '');
+    const qty = Math.max(0, Math.min(20, Math.floor(Number(item?.qty) || 0)));
+    if (!id || qty < 1) continue;
+    qtyById.set(id, (qtyById.get(id) || 0) + qty);
+  }
+  const ids = [...qtyById.keys()];
+  if (ids.length === 0) return json({ error: 'Your cart is empty' }, 400);
+
+  const placeholders = ids.map(() => '?').join(',');
+  const { results } = await env.DB.prepare(`SELECT * FROM products WHERE id IN (${placeholders})`)
+    .bind(...ids)
+    .all();
+  const products = new Map((results || []).map((row) => [row.id, productFromRow(row)]));
+
+  const lines = [];
+  let subtotal = 0;
+  for (const id of ids) {
+    const product = products.get(id);
+    const qty = qtyById.get(id);
+    if (!product) return json({ error: 'A product in your cart is no longer available' }, 400);
+    if (product.in_stock === false) return json({ error: `${product.name} is out of stock` }, 400);
+    const unit = Number(product.price) || 0;
+    const line = roundMoney(unit * qty);
+    subtotal = roundMoney(subtotal + line);
+    lines.push({
+      id: product.id,
+      name: product.name,
+      qty,
+      unit_price: unit,
+      price: unit,
+      line_total: line,
+    });
+  }
+
+  const id = randomId();
+  const summary = lines.map((line) => `${line.qty}× ${line.name}`).join(', ');
+  await env.DB.prepare(
+    `INSERT INTO store_transactions (
+      id, customer_id, customer_email, customer_name, customer_phone, type, status,
+      amount_usd, discount_usd, items_json, product_ids, product_summary, calculated_points,
+      submitted_by, ambassador_code, member_price_requested, created_date, delivery_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      customerId,
+      customer_email,
+      customer_name,
+      customer_phone,
+      'PRODUCT_PURCHASE',
+      'PENDING',
+      subtotal,
+      0,
+      JSON.stringify(lines),
+      JSON.stringify(ids),
+      summary,
+      pointsForPurchaseUsd(subtotal),
+      'CUSTOMER',
+      String(body.ambassador_code || '').trim(),
+      body.member_price_requested ? 1 : 0,
+      nowIso(),
+      JSON.stringify(delivery),
+    )
+    .run();
+
+  if (body.save_address && customerId) {
+    await saveCheckoutAddress(env, customerId, { ...delivery, id: address.id, label: address.label }, true);
+  }
+
+  const row = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(id).first();
+  return json({ success: true, transaction: txFromRow(row) }, 201);
+}
+
+async function listPendingTransactions(env, body) {
+  const status = body.status ? String(body.status) : '';
+  let rows = [];
+  if (!status || status === 'ALL') {
+    const result = await env.DB.prepare(
+      'SELECT * FROM store_transactions ORDER BY created_date DESC LIMIT 300',
+    ).all();
+    rows = result.results || [];
+  } else if (status === 'PENDING') {
+    const result = await env.DB.prepare(
+      `SELECT * FROM store_transactions
+       WHERE status IN ('PENDING', 'PROCESSING')
+       ORDER BY created_date DESC LIMIT 300`,
+    ).all();
+    rows = result.results || [];
+  } else {
+    const result = await env.DB.prepare(
+      'SELECT * FROM store_transactions WHERE status = ? ORDER BY created_date DESC LIMIT 300',
+    )
+      .bind(status)
+      .all();
+    rows = result.results || [];
+  }
+  return json({ success: true, transactions: rows.map(txFromRow) });
+}
+
+async function approveTransaction(env, body, admin) {
+  const txId = String(body.transaction_id || '');
+  if (!txId) return json({ error: 'Missing transaction_id' }, 400);
+  const row = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(txId).first();
+  if (!row) return json({ error: 'Transaction not found' }, 404);
+  if (row.status === 'REJECTED') {
+    return json({ error: 'Rejected transactions cannot be approved' }, 409);
+  }
+  if (row.status === 'APPROVED') {
+    return json({ success: true, already_approved: true, transaction: txFromRow(row) });
+  }
+  await env.DB.prepare(
+    'UPDATE store_transactions SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?',
+  )
+    .bind('APPROVED', admin.id, nowIso(), txId)
+    .run();
+  const updated = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(txId).first();
+  return json({ success: true, already_approved: false, transaction: txFromRow(updated) });
+}
+
+async function rejectTransaction(env, body, admin) {
+  const txId = String(body.transaction_id || '');
+  if (!txId) return json({ error: 'Missing transaction_id' }, 400);
+  const row = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(txId).first();
+  if (!row) return json({ error: 'Transaction not found' }, 404);
+  if (row.status === 'APPROVED') {
+    return json({ error: 'Approved transactions cannot be rejected' }, 409);
+  }
+  if (row.status === 'REJECTED') {
+    return json({ success: true, already_rejected: true, transaction: txFromRow(row) });
+  }
+  await env.DB.prepare(
+    'UPDATE store_transactions SET status = ?, reviewed_by = ?, reviewed_at = ?, reject_reason = ? WHERE id = ?',
+  )
+    .bind('REJECTED', admin.id, nowIso(), String(body.reject_reason || '').trim(), txId)
+    .run();
+  const updated = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(txId).first();
+  return json({ success: true, transaction: txFromRow(updated) });
+}
+
 async function ensureSettings(env) {
   const setStmt = env.DB.prepare(
     'INSERT OR IGNORE INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)',
@@ -111,6 +381,8 @@ async function upsertProducts(env, products) {
 
 async function ensureCatalog(env, request) {
   await ensureSettings(env);
+  await ensureTransactions(env);
+  await ensureCustomerSchema(env);
   const res = await fetchAsset(env, request, '/data/products.json');
   if (!res.ok) return;
   const text = await res.text();
@@ -152,7 +424,6 @@ async function requireAdmin(request, env) {
 }
 
 function fnStub(name) {
-  if (name === 'listPendingTransactions') return { transactions: [] };
   if (name === 'listMemberships') return { memberships: [] };
   if (name === 'getLedger') return { entries: [] };
   if (name === 'getMyAccount') return { error: 'Customer accounts are not on Cloudflare yet' };
@@ -346,6 +617,30 @@ async function handleApi(request, env) {
 
   if (path.startsWith('/api/fn/') && method === 'POST') {
     const name = path.slice('/api/fn/'.length);
+    const body = await readJson(request);
+
+    if (name === 'submitCheckout') {
+      return submitCheckout(env, body);
+    }
+    if (name === 'listPendingTransactions') {
+      const admin = await requireAdminFn(env, body, request);
+      if (!admin) return json({ error: 'unauthorized' }, 401);
+      return listPendingTransactions(env, body);
+    }
+    if (name === 'approveTransaction') {
+      const admin = await requireAdminFn(env, body, request);
+      if (!admin) return json({ error: 'unauthorized' }, 401);
+      return approveTransaction(env, body, admin);
+    }
+    if (name === 'rejectTransaction') {
+      const admin = await requireAdminFn(env, body, request);
+      if (!admin) return json({ error: 'unauthorized' }, 401);
+      return rejectTransaction(env, body, admin);
+    }
+
+    const customerRes = await handleCustomerFn(env, name, body, request);
+    if (customerRes) return customerRes;
+
     const stub = fnStub(name);
     const status = stub.error ? 501 : 200;
     return json(stub, status);

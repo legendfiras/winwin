@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Star, User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Home, Star, User, ShoppingCart } from 'lucide-react';
+import { useCart } from '@/lib/cart';
 
 const SCROLL_KEY = 'tab_scroll_positions';
 const FILTER_KEY = 'tab_filter_states';
 
 const TABS = [
   { path: '/', label: 'Shop', icon: Home },
+  { path: '/cart', label: 'Cart', icon: ShoppingCart },
   { path: '/winwin-card', label: 'WinWin Card', icon: Star },
   { path: '/my-account', label: 'Account', icon: User },
 ];
@@ -30,7 +32,7 @@ function restoreScrollPos(path) {
 
 export default function MobileBottomTab() {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { count } = useCart();
 
   // Save scroll position on route change
   useEffect(() => {
@@ -66,11 +68,16 @@ export default function MobileBottomTab() {
               key={tab.path}
               to={tab.path}
               onClick={(e) => handleTabClick(e, tab)}
-              className={`flex flex-col items-center justify-center gap-1 min-w-[44px] min-h-[44px] px-3 py-1 rounded-xl transition-colors select-none ${
+              className={`relative flex flex-col items-center justify-center gap-1 min-w-[44px] min-h-[44px] px-3 py-1 rounded-xl transition-colors select-none ${
                 isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <tab.icon className={`w-5 h-5 ${isActive ? 'fill-primary/10' : ''}`} />
+              {tab.path === '/cart' && count > 0 && (
+                <span className="absolute top-1 right-2 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-4">
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
               <span className="text-xs font-medium">{tab.label}</span>
             </Link>
           );

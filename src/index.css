@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Great+Vibes&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,32 +8,52 @@
   :root {
     --font-heading: 'Poppins', sans-serif;
     --font-body: 'Inter', sans-serif;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-script: 'Great Vibes', cursive;
 
-    --background: 30 20% 98%;
-    --foreground: 220 20% 10%;
+    --winwin-burgundy: #74151F;
+    --winwin-burgundy-dark: #591018;
+    --winwin-gold: #C3953C;
+    --winwin-gold-dark: #9F7226;
+    --winwin-gold-light: #E7C77D;
+    --winwin-cream: #FAF7F0;
+    --winwin-cream-dark: #F2E9DA;
+    --winwin-text: #25221F;
+    --winwin-muted: #756F68;
+
+    --brand: 24 100% 50%;
+    --brand-hover: 22 100% 46%;
+    --soft-orange: 28 100% 96%;
+    --success: 142 64% 32%;
+    --warning: 32 95% 40%;
+
+    --background: 30 100% 99%;
+    --foreground: 0 0% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 25 95% 53%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 24 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 10%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 160 84% 39%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --secondary: 28 100% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 30 20% 95%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 28 100% 96%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 25 95% 53%;
-    --chart-1: 25 95% 53%;
+    --border: 30 16% 91%;
+    --input: 30 16% 91%;
+    --ring: 24 100% 50%;
+    --chart-1: 24 100% 50%;
     --chart-2: 160 84% 39%;
     --chart-3: 220 70% 50%;
     --chart-4: 43 74% 66%;
     --chart-5: 340 75% 55%;
-    --radius: 0.75rem;
+    --radius: 0.625rem;
+    --radius-card: 0.875rem;
+    --radius-panel: 1.125rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -45,37 +65,37 @@
   }
 
   .dark {
-    --background: 220 15% 8%;
-    --foreground: 0 0% 95%;
-    --card: 220 15% 12%;
-    --card-foreground: 0 0% 95%;
-    --popover: 220 15% 12%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 25 95% 53%;
+    --background: 30 100% 99%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 24 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 15% 16%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 220 15% 16%;
-    --muted-foreground: 220 10% 55%;
-    --accent: 160 84% 39%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --secondary: 28 100% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 30 20% 95%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 28 100% 96%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 25 95% 53%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
+    --border: 30 16% 91%;
+    --input: 30 16% 91%;
+    --ring: 24 100% 50%;
+    --chart-1: 24 100% 50%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 220 70% 50%;
+    --chart-4: 43 74% 66%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
@@ -87,9 +107,14 @@
   html {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    color-scheme: light;
+    overflow-x: hidden;
+  }
+  html, body, #root {
+    color: hsl(var(--foreground));
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
     overscroll-behavior: none;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-top: env(safe-area-inset-top, 0px);
@@ -102,11 +127,61 @@
   }
 }
 
+@layer components {
+  .text-display {
+    @apply font-heading text-4xl font-bold tracking-tight text-foreground;
+  }
+  .text-h1 {
+    @apply font-heading text-3xl font-bold tracking-tight text-foreground;
+  }
+  .text-h2 {
+    @apply font-heading text-2xl font-semibold tracking-tight text-foreground;
+  }
+  .text-h3 {
+    @apply font-heading text-lg font-semibold text-foreground;
+  }
+  .text-body {
+    @apply font-body text-base text-foreground;
+  }
+  .text-small {
+    @apply font-body text-sm text-foreground;
+  }
+  .text-caption {
+    @apply font-body text-xs text-muted-foreground;
+  }
+  .product-image-frame {
+    aspect-ratio: 1 / 1;
+    background: #F7F4F0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .product-image-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
 @layer utilities {
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-only {
+    transform: none !important;
+    transition: none !important;
   }
 }

@@ -6,12 +6,20 @@ module.exports = {
   	extend: {
   		fontFamily: {
   			heading: ['var(--font-heading)'],
-  			body: ['var(--font-body)']
+  			body: ['var(--font-body)'],
+  			display: ['var(--font-display)'],
+  			script: ['var(--font-script)']
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			card: 'var(--radius-card)',
+  			panel: 'var(--radius-panel)'
+  		},
+  		boxShadow: {
+  			subtle: '0 1px 2px rgba(23, 23, 23, 0.04), 0 4px 12px rgba(23, 23, 23, 0.04)',
+  			lift: '0 8px 20px rgba(23, 23, 23, 0.08)'
   		},
   		colors: {
   			background: 'hsl(var(--background))',

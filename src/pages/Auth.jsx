@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { invokePublic, setCustomer, setSessionToken } from '@/lib/customerAuth';
+import { activationPath } from '@/lib/accountGuards';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { UserPlus, LogIn } from 'lucide-react';
 import { store } from '@/api/store';
+import { toast } from 'sonner';
+import { UserPlus, LogIn, KeyRound } from 'lucide-react';
 
 export default function Auth() {
   return (
@@ -37,6 +38,9 @@ function SignInForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [migratedEmail, setMigratedEmail] = useState('');
+  const [setupSent, setSetupSent] = useState(false);
+  const [setupLoading, setSetupLoading] = useState(false);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -46,22 +50,74 @@ function SignInForm() {
         email: email.toLowerCase(),
         password,
       });
+      if (data?.code === 'MIGRATED_SETUP_REQUIRED') {
+        setMigratedEmail(email.toLowerCase());
+        setSetupSent(false);
+        return;
+      }
       if (data?.error) {
         toast.error(data.error);
         return;
       }
       setSessionToken(data.session_token);
       setCustomer(data.customer);
-      toast.success(data.customer?.must_reset_password
-        ? 'Welcome back. Please set a new password from Forgot Password when you can.'
-        : 'Welcome back!');
-      setTimeout(() => { window.location.href = '/'; }, 600);
+      toast.success('Welcome back!');
+      const next = activationPath(data.customer) || '/';
+      setTimeout(() => { window.location.href = next; }, 600);
     } catch (err) {
       toast.error(err.message || 'Sign in failed');
     } finally {
       setLoading(false);
     }
   };
+
+  const sendSetup = async () => {
+    setSetupLoading(true);
+    try {
+      await invokePublic('requestPasswordReset', {
+        email: migratedEmail,
+        app_origin: window.location.origin,
+      });
+      setSetupSent(true);
+    } catch {
+      setSetupSent(true);
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
+  if (migratedEmail) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-heading">
+            <KeyRound className="w-5 h-5 text-primary" /> Your account has been migrated
+          </CardTitle>
+          <CardDescription>
+            Set up a new password to continue. We did not copy passwords from the old platform.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {setupSent ? (
+            <p className="text-sm text-muted-foreground">
+              If this email is on a migrated account, you will receive password setup instructions shortly.
+              The link expires in 1 hour and can be used once.
+            </p>
+          ) : (
+            <Button type="button" className="w-full" onClick={sendSetup} disabled={setupLoading}>
+              {setupLoading ? 'Sending...' : 'Set Up My Password'}
+            </Button>
+          )}
+          <p className="text-sm text-center">
+            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your old email?</Link>
+          </p>
+          <Button type="button" variant="ghost" className="w-full" onClick={() => setMigratedEmail('')}>
+            Back to sign in
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -87,6 +143,10 @@ function SignInForm() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
+          <p className="text-sm text-center text-muted-foreground">
+            Migrated from the old app?{' '}
+            <Link to="/recover-account" className="text-primary hover:underline">Recover migrated account</Link>
+          </p>
         </form>
       </CardContent>
     </Card>
@@ -94,14 +154,22 @@ function SignInForm() {
 }
 
 function SignUpForm() {
-  const [form, setForm] = useState({ full_name: '', email: '', mobile: '', country: '', password: '', confirm: '', ambassador_code: '' });
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    mobile: '',
+    password: '',
+    confirm: '',
+    ambassador_code: '',
+  });
   const [loading, setLoading] = useState(false);
   const [waNumber, setWaNumber] = useState('');
 
   React.useEffect(() => {
-    store.settings.list().then(settingsList => {
+    store.settings.list().then((settingsList) => {
       const list = Array.isArray(settingsList) ? settingsList : [];
-      const waSetting = list.find(s => s.setting_key === 'whatsapp_number');
+      const waSetting = list.find((s) => s.setting_key === 'whatsapp_number');
       const num = (waSetting?.setting_value || '0096178714472').replace(/[^0-9]/g, '').replace(/^0+/, '');
       setWaNumber(num);
     });
@@ -120,26 +188,27 @@ function SignUpForm() {
     setLoading(true);
     try {
       const data = await invokePublic('registerCustomer', {
-        full_name: form.full_name,
+        first_name: form.first_name,
+        last_name: form.last_name,
         email: form.email.toLowerCase(),
         mobile: form.mobile,
-        country: form.country,
         password: form.password,
         ambassador_code: form.ambassador_code,
+        app_origin: window.location.origin,
       });
       if (data?.error) {
         toast.error(data.error);
         return;
       }
 
-      const ambassadorInfo = form.ambassador_code ? `\nAmbassador Code: ${form.ambassador_code}` : '';
-      const waMsg = encodeURIComponent(`🆕 New WinWin Customer!\n\nName: ${form.full_name}\nEmail: ${form.email}\nMobile: ${form.mobile}\nCountry: ${form.country}${ambassadorInfo}`);
-      const num = waNumber || '96178714472';
-      window.open(`https://wa.me/${num}?text=${waMsg}`, '_blank');
-
       setSessionToken(data.session_token);
       setCustomer(data.customer);
-      toast.success('Welcome to WinWin! You received 10 bonus points!');
+      const ambassadorInfo = form.ambassador_code ? `\nAmbassador Code: ${form.ambassador_code}` : '';
+      const waMsg = encodeURIComponent(`🆕 New WinWin Customer!\n\nName: ${form.first_name} ${form.last_name}\nEmail: ${form.email}\nMobile: ${form.mobile}${ambassadorInfo}`);
+      window.open(`https://wa.me/${waNumber || '96178714472'}?text=${waMsg}`, '_blank');
+      toast.success(data.points_awarded
+        ? `Welcome to WinWin! You received ${data.points_awarded} bonus points.`
+        : 'Welcome to WinWin!');
       setTimeout(() => { window.location.href = '/'; }, 1000);
     } catch (err) {
       toast.error(err.message || 'Sign up failed');
@@ -154,37 +223,39 @@ function SignUpForm() {
         <CardTitle className="flex items-center gap-2 font-heading">
           <UserPlus className="w-5 h-5 text-primary" /> Sign Up
         </CardTitle>
-        <CardDescription>Create an account and get 10 free points!</CardDescription>
+        <CardDescription>Create an account and get 10 free points. No delivery address needed.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSignUp} className="space-y-4">
-          <div>
-            <Label>Full Name</Label>
-            <Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>First Name</Label>
+              <Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} required autoComplete="given-name" />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} required autoComplete="family-name" />
+            </div>
           </div>
           <div>
             <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} required autoComplete="email" />
+            <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required autoComplete="email" />
           </div>
           <div>
-            <Label>Mobile Number</Label>
-            <Input value={form.mobile} onChange={e => setForm({...form, mobile: e.target.value})} required placeholder="+961..." />
-          </div>
-          <div>
-            <Label>Country</Label>
-            <Input value={form.country} onChange={e => setForm({...form, country: e.target.value})} required />
+            <Label>Phone</Label>
+            <Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} required placeholder="+961..." autoComplete="tel" />
           </div>
           <div>
             <Label>Password</Label>
-            <Input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} required autoComplete="new-password" />
+            <Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" />
           </div>
           <div>
             <Label>Confirm Password</Label>
-            <Input type="password" value={form.confirm} onChange={e => setForm({...form, confirm: e.target.value})} required autoComplete="new-password" />
+            <Input type="password" value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} required autoComplete="new-password" />
           </div>
           <div>
             <Label>Ambassador Code <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input value={form.ambassador_code} onChange={e => setForm({...form, ambassador_code: e.target.value})} placeholder="Enter code if you have one" />
+            <Input value={form.ambassador_code} onChange={e => setForm({ ...form, ambassador_code: e.target.value })} placeholder="Enter code if you have one" />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Creating account...' : 'Sign Up & Get 10 Points'}

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '@/components/Navbar';
-import MobileHeader from '@/components/MobileHeader';
+import Storefront from '@/components/Storefront';
+import Container from '@/components/Container';
 import WhatsAppButton from '@/components/WhatsAppButton';
-import MobileBottomTab from '@/components/MobileBottomTab';
 import { useSettings } from '@/lib/useSettings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,10 +49,8 @@ export default function WinWinCard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <div className="hidden md:block"><Navbar /></div>
-      <MobileHeader title="WinWin Card" backTo="/" />
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
+    <Storefront>
+      <Container className="max-w-3xl space-y-8 py-8">
         {/* Card Image */}
         {cardImage && (
           <div className="rounded-2xl overflow-hidden shadow-xl">
@@ -133,9 +130,8 @@ export default function WinWinCard() {
             <Link to="/auth">Sign in to submit a card purchase</Link>
           </Button>
         )}
-      </div>
-      <MobileBottomTab />
+      </Container>
       <WhatsAppButton />
-    </div>
+    </Storefront>
   );
 }

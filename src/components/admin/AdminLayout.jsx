@@ -1,12 +1,14 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, Image, Settings, Users, LogOut, LayoutDashboard, CreditCard, QrCode, ClipboardList, Award } from 'lucide-react';
+import { Package, Image, Settings, Users, LogOut, LayoutDashboard, CreditCard, QrCode, ClipboardList, Award, LifeBuoy } from 'lucide-react';
 import { isAdmin, clearAdmin } from '@/lib/customerAuth';
 import { Button } from '@/components/ui/button';
+import BrandLogo from '@/components/BrandLogo';
 
 const NAV_ITEMS = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/admin/pending', label: 'Pending', icon: ClipboardList },
+  { path: '/admin/pending', label: 'Orders', icon: ClipboardList },
+  { path: '/admin/recovery', label: 'Account Recovery', icon: LifeBuoy },
   { path: '/admin/loyalty', label: 'Loyalty', icon: Award },
   { path: '/admin/products', label: 'Products', icon: Package },
   { path: '/admin/slideshow', label: 'Slideshow', icon: Image },
@@ -30,10 +32,11 @@ export default function AdminLayout({ children }) {
     <div className="min-h-screen bg-muted flex">
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 bg-card border-r border-border flex-col">
-        <div className="p-6 border-b border-border">
-          <h1 className="font-heading font-bold text-xl">
-            Win<span className="text-primary">Win</span> Admin
-          </h1>
+        <div className="p-4 border-b border-border">
+          <Link to="/" className="block">
+            <BrandLogo className="h-12" />
+          </Link>
+          <p className="mt-2 text-sm font-heading font-semibold text-foreground">Admin</p>
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {NAV_ITEMS.map(item => (
@@ -64,9 +67,9 @@ export default function AdminLayout({ children }) {
       {/* Mobile header */}
       <div className="flex-1 flex flex-col">
         <header className="md:hidden bg-card border-b border-border p-4 flex items-center justify-between">
-          <h1 className="font-heading font-bold text-lg">
-            Win<span className="text-primary">Win</span> Admin
-          </h1>
+          <Link to="/" className="flex items-center min-w-0">
+            <BrandLogo className="h-9" />
+          </Link>
           <Button variant="ghost" size="sm" onClick={() => { clearAdmin(); navigate('/'); }}>
             <LogOut className="w-4 h-4" />
           </Button>

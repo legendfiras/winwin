@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, MinusCircle, Pencil, Trash2, Search, History, ClipboardList } from 'lucide-react';
+import { PlusCircle, MinusCircle, Pencil, Trash2, Search, History, ClipboardList, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { invokeAdmin } from '@/lib/customerAuth';
 import { pointsForPurchaseUsd } from '@/lib/pointsTiers';
@@ -43,7 +43,10 @@ export default function AdminCustomers() {
 
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await invokeAdmin('listCustomers');
+      return res?.customers || [];
+    },
   });
 
   const filtered = useMemo(() => {
@@ -51,26 +54,14 @@ export default function AdminCustomers() {
     const q = search.toLowerCase();
     return customers.filter(c =>
       c.full_name?.toLowerCase().includes(q) ||
-      c.mobile?.toLowerCase().includes(q)
+      c.mobile?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.legacy_user_id?.toLowerCase().includes(q)
     );
   }, [customers, search]);
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }) => {
-      const blocked = new Set([
-        'points',
-        'password',
-        'has_winwin_card',
-        'card_purchase_date',
-        'card_expiry_date',
-        'signup_bonus_granted',
-        'last_signin_date',
-      ]);
-      const safe = Object.fromEntries(
-        Object.entries(data || {}).filter(([key]) => !blocked.has(key))
-      );
-      return Promise.reject(new Error('Customer accounts are not stored on Cloudflare yet'));
-    },
+    mutationFn: ({ id, data }) => invokeAdmin('adminUpdateCustomer', { customer_id: id, ...data }),
     onMutate: async ({ id, data }) => {
       await qc.cancelQueries({ queryKey: ['customers'] });
       const previous = qc.getQueryData(['customers']);
@@ -718,6 +709,30 @@ export default function AdminCustomers() {
                       >
                         <History className="w-4 h-4" />
                       </button>
+                      {c.account_source === 'migrated' && c.password_setup_required ? (
+                        <button
+                          onClick={async () => {
+                            const data = await invokeAdmin('adminSendPasswordSetup', {
+                              customer_id: c.id,
+                              app_origin: window.location.origin,
+                            });
+                            if (data?.error) {
+                              toast.error(data.error);
+                              return;
+                            }
+                            if (data.setup_url) {
+                              try { await navigator.clipboard.writeText(data.setup_url); } catch { /* ignore */ }
+                              toast.success('Password setup link copied');
+                            } else {
+                              toast.success('Setup email queued if mail is configured');
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="Send password setup link"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+                      ) : null}
                       <button
                         onClick={() => { setCreateTxCustomer(c); setCreateTxType('PRODUCT_PURCHASE'); setCreateTxAmount(''); setCreateTxNote(''); }}
                         className="text-muted-foreground hover:text-primary transition-colors"

@@ -17,15 +17,15 @@ export default function CustomerFeedback() {
   if (!text) return null;
 
   return (
-    <Card className="border-primary/20 bg-primary/5">
+    <Card className="border-[rgba(116,21,31,0.12)] bg-[rgba(250,247,240,0.9)]">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base font-heading">
-          <MessageSquare className="w-5 h-5 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-base font-heading text-[var(--winwin-text)]">
+          <MessageSquare className="w-5 h-5 text-[var(--winwin-burgundy)]" />
           Announcement
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{text}</p>
+        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{text}</p>
       </CardContent>
     </Card>
   );

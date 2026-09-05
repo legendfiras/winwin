@@ -1,22 +1,48 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, User, Shield, LogOut, Star, Menu, X } from 'lucide-react';
+import { ChevronDown, LogOut, Shield, User } from 'lucide-react';
 import { getCustomer, clearCustomer, isAdmin, clearAdmin, invokeCustomer, invokePublic, getAdminSessionToken } from '@/lib/customerAuth';
+import { formatPoints } from '@/lib/pointsTiers';
+import { PRIMARY_CATEGORIES, MORE_CATEGORIES } from '@/lib/categories';
 import { Button } from '@/components/ui/button';
+import CartButton from '@/components/CartButton';
+import HeaderSearch from '@/components/HeaderSearch';
+import BrandLogo from '@/components/BrandLogo';
+import Container from '@/components/Container';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+function NavLink({ to, children }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex h-11 items-center rounded-[10px] px-3 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const customer = getCustomer();
   const admin = isAdmin();
   const navigate = useNavigate();
+  const firstName = customer?.full_name?.split(' ')[0] || 'Account';
 
   const handleLogout = async () => {
     try {
       await invokeCustomer('logoutCustomer');
-    } catch (_e) { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     clearCustomer();
     if (getAdminSessionToken()) {
-      try { await invokePublic('logoutCustomer', { session_token: getAdminSessionToken() }); } catch (_e) { /* ignore */ }
+      try { await invokePublic('logoutCustomer', { session_token: getAdminSessionToken() }); } catch { /* ignore */ }
     }
     clearAdmin();
     navigate('/');
@@ -24,93 +50,82 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-lg border-b border-border shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="bg-primary text-primary-foreground rounded-xl p-2">
-            <ShoppingBag className="w-6 h-6" />
-          </div>
-          <span className="font-heading font-bold text-xl tracking-tight">
-            Win<span className="text-primary">Win</span>.leb
-          </span>
+    <header className="sticky top-0 z-40 border-b border-[rgba(201,176,130,0.22)] bg-[rgba(251,248,242,0.86)] backdrop-blur-md">
+      <Container className="flex h-16 min-w-0 items-center gap-2 overflow-visible md:h-[4.25rem] md:gap-6">
+        <Link to="/" className="relative z-10 flex h-10 w-[148px] shrink-0 items-center md:h-12 md:w-[176px]" aria-label="WinWin home">
+          <BrandLogo className="h-full w-full" />
         </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link to="/">
-            <Button variant="ghost" size="sm">Shop</Button>
-          </Link>
-          <Link to="/winwin-card">
-            <Button variant="ghost" size="sm" className="text-primary">
-              <Star className="w-4 h-4 mr-1" /> WinWin Card
-            </Button>
-          </Link>
-          {customer ? (
-            <>
-              <Link to="/my-account">
-                <Button variant="ghost" size="sm">
-                  <User className="w-4 h-4 mr-1" /> {customer.full_name?.split(' ')[0]}
-                  <span className="ml-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                    {customer.points || 0} pts
-                  </span>
-                </Button>
-              </Link>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+          <NavLink to="/">Shop</NavLink>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-11 rounded-[10px] px-3 text-sm font-medium">
+                Categories
+                <ChevronDown className="h-4 w-4" />
               </Button>
-            </>
-          ) : (
-            <Link to="/auth">
-              <Button size="sm">Sign In</Button>
-            </Link>
-          )}
-          <Link to="/admin-login">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-              <Shield className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {PRIMARY_CATEGORIES.filter((item) => item.key !== 'all').map((item) => (
+                <DropdownMenuItem key={item.key} asChild>
+                  <Link to={`/?cat=${item.key}`}>{item.label}</Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              {MORE_CATEGORIES.filter((item) => ['new_gadgets', 'must_have'].includes(item.key)).map((item) => (
+                <DropdownMenuItem key={item.key} asChild>
+                  <Link to={`/?cat=${item.key}`}>{item.label}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <NavLink to="/winwin-card">WinWin Card</NavLink>
+        </nav>
 
-        {/* Mobile toggle */}
-        <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-white px-4 py-3 space-y-2">
-          <Link to="/" onClick={() => setMobileOpen(false)}>
-            <Button variant="ghost" className="w-full justify-start">Shop</Button>
-          </Link>
-          <Link to="/winwin-card" onClick={() => setMobileOpen(false)}>
-            <Button variant="ghost" className="w-full justify-start text-primary">
-              <Star className="w-4 h-4 mr-2" /> WinWin Card
-            </Button>
-          </Link>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <HeaderSearch />
           {customer ? (
-            <>
-              <Link to="/my-account" onClick={() => setMobileOpen(false)}>
-                <Button variant="ghost" className="w-full justify-start">
-                  <User className="w-4 h-4 mr-2" /> My Account ({customer.points || 0} pts)
+            <span className="hidden items-center rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground lg:inline-flex">
+              {formatPoints(customer.points)}
+            </span>
+          ) : null}
+          <CartButton />
+          {customer ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="hidden h-11 rounded-[10px] px-3 md:inline-flex">
+                  <User className="h-4 w-4" />
+                  {firstName}
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
-              </Link>
-              <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-2" /> Logout
-              </Button>
-            </>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem asChild>
+                  <Link to="/my-account">Account</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/winwin-card">WinWin Card</Link>
+                </DropdownMenuItem>
+                {admin ? (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin">
+                      <Shield className="h-4 w-4" /> Admin
+                    </Link>
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
-            <Link to="/auth" onClick={() => setMobileOpen(false)}>
-              <Button className="w-full">Sign In</Button>
-            </Link>
-          )}
-          <Link to="/admin-login" onClick={() => setMobileOpen(false)}>
-            <Button variant="ghost" className="w-full justify-start text-muted-foreground">
-              <Shield className="w-4 h-4 mr-2" /> Admin
+            <Button asChild size="sm" className="hidden h-10 rounded-[10px] md:inline-flex">
+              <Link to="/auth">Sign In</Link>
             </Button>
-          </Link>
+          )}
         </div>
-      )}
-    </nav>
+      </Container>
+    </header>
   );
 }
