@@ -7,6 +7,15 @@ const MIME = {
   '.svg': 'image/svg+xml',
 };
 
+const DEFAULT_SETTINGS = [
+  ['whatsapp_number', '0096181629538'],
+  ['background_color', '#FFF8F0'],
+  ['admin_password', '1234'],
+  ['admin_email', ''],
+  ['winwin_card_image', ''],
+  ['customer_feedback', ''],
+];
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
@@ -47,6 +56,11 @@ function productFromRow(row) {
   };
 }
 
+function mimeFor(filename) {
+  const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+  return MIME[ext] || 'application/octet-stream';
+}
+
 async function readJson(request) {
   try {
     return await request.json();
@@ -55,48 +69,75 @@ async function readJson(request) {
   }
 }
 
-async function ensureSeed(env, request) {
-  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM products').first();
-  if (row?.n > 0) return;
-  const origin = new URL(request.url).origin;
-  const res = await env.ASSETS.fetch(new URL('/data/products.json', origin));
-  if (!res.ok) return;
-  const products = await res.json();
-  if (!Array.isArray(products) || products.length === 0) return;
-  const stmt = env.DB.prepare(
-    `INSERT OR IGNORE INTO products (id, name, description, price, points_price, category, image_url, in_stock, created_date, updated_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const batch = products.map((p) =>
-    stmt.bind(
-      p.id,
-      p.name,
-      p.description || '',
-      Number(p.price) || 0,
-      Number(p.points_price) || 0,
-      p.category || 'must_have',
-      p.image_url || '',
-      p.in_stock === false ? 0 : 1,
-      p.created_date || nowIso(),
-      p.updated_date || p.created_date || nowIso(),
-    ),
-  );
-  for (let i = 0; i < batch.length; i += 50) {
-    await env.DB.batch(batch.slice(i, i + 50));
-  }
+async function fetchAsset(env, request, pathname) {
+  const url = new URL(pathname, new URL(request.url).origin);
+  url.search = '';
+  return env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }));
+}
 
-  const defaults = [
-    ['whatsapp_number', '0096181629538'],
-    ['background_color', '#FFF8F0'],
-    ['admin_password', '1234'],
-    ['admin_email', ''],
-    ['winwin_card_image', ''],
-    ['customer_feedback', ''],
-  ];
+async function ensureSettings(env) {
   const setStmt = env.DB.prepare(
     'INSERT OR IGNORE INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)',
   );
-  await env.DB.batch(defaults.map(([k, v]) => setStmt.bind(k, v, randomId())));
+  await env.DB.batch(DEFAULT_SETTINGS.map(([k, v]) => setStmt.bind(k, v, randomId())));
+}
+
+async function upsertProducts(env, products) {
+  if (!Array.isArray(products) || products.length === 0) return;
+  const stmt = env.DB.prepare(
+    `INSERT OR REPLACE INTO products (id, name, description, price, points_price, category, image_url, in_stock, created_date, updated_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const batch = products
+    .filter((p) => p && p.id && p.name)
+    .map((p) =>
+      stmt.bind(
+        p.id,
+        p.name,
+        p.description || '',
+        Number(p.price) || 0,
+        Number(p.points_price) || 0,
+        p.category || 'must_have',
+        p.image_url || '',
+        p.in_stock === false ? 0 : 1,
+        p.created_date || nowIso(),
+        p.updated_date || p.created_date || nowIso(),
+      ),
+    );
+  for (let i = 0; i < batch.length; i += 50) {
+    await env.DB.batch(batch.slice(i, i + 50));
+  }
+}
+
+async function ensureCatalog(env, request) {
+  await ensureSettings(env);
+  const res = await fetchAsset(env, request, '/data/products.json');
+  if (!res.ok) return;
+  const text = await res.text();
+  const hash = await sha256(text);
+  const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
+    .bind('catalog_hash')
+    .first();
+  if (row?.setting_value === hash) return;
+  let products;
+  try {
+    products = JSON.parse(text);
+  } catch {
+    return;
+  }
+  await upsertProducts(env, products);
+  const existing = await env.DB.prepare('SELECT setting_key FROM settings WHERE setting_key = ?')
+    .bind('catalog_hash')
+    .first();
+  if (existing) {
+    await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
+      .bind(hash, 'catalog_hash')
+      .run();
+  } else {
+    await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
+      .bind('catalog_hash', hash, randomId())
+      .run();
+  }
 }
 
 async function requireAdmin(request, env) {
@@ -110,9 +151,20 @@ async function requireAdmin(request, env) {
     .first();
 }
 
+function fnStub(name) {
+  if (name === 'listPendingTransactions') return { transactions: [] };
+  if (name === 'listMemberships') return { memberships: [] };
+  if (name === 'getLedger') return { entries: [] };
+  if (name === 'getMyAccount') return { error: 'Customer accounts are not on Cloudflare yet' };
+  if (name === 'loginCustomer' || name === 'registerCustomer') {
+    return { error: 'Customer accounts are not on Cloudflare yet. Shop admin is at /admin-login.' };
+  }
+  return { error: 'This feature is not on Cloudflare yet' };
+}
+
 async function handleApi(request, env) {
   const url = new URL(request.url);
-  const path = url.pathname;
+  const path = url.pathname.replace(/\/+$/, '') || '/';
   const method = request.method;
 
   if (method === 'OPTIONS') {
@@ -125,7 +177,12 @@ async function handleApi(request, env) {
     });
   }
 
-  await ensureSeed(env, request);
+  await ensureCatalog(env, request);
+
+  if (path === '/api/health' && method === 'GET') {
+    const products = await env.DB.prepare('SELECT COUNT(*) AS n FROM products').first();
+    return json({ ok: true, products: Number(products?.n) || 0 });
+  }
 
   if (path === '/api/products' && method === 'GET') {
     const { results } = await env.DB.prepare(
@@ -196,15 +253,17 @@ async function handleApi(request, env) {
   }
 
   if (path === '/api/settings' && method === 'GET') {
+    const admin = await requireAdmin(request, env);
     const { results } = await env.DB.prepare('SELECT * FROM settings').all();
-    return json(results || []);
+    const rows = (results || []).filter((row) => admin || row.setting_key !== 'admin_password');
+    return json(rows);
   }
 
   if (path === '/api/settings' && method === 'POST') {
     if (!(await requireAdmin(request, env))) return json({ error: 'unauthorized' }, 401);
     const body = await readJson(request);
     const key = String(body.setting_key || '');
-    if (!key) return json({ error: 'setting_key required' }, 400);
+    if (!key || key === 'catalog_hash') return json({ error: 'setting_key required' }, 400);
     const existing = await env.DB.prepare('SELECT * FROM settings WHERE setting_key = ?').bind(key).first();
     if (existing) {
       await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
@@ -255,21 +314,27 @@ async function handleApi(request, env) {
     const original = file.name || 'upload.bin';
     const ext = original.includes('.') ? `.${original.split('.').pop().toLowerCase()}` : '';
     const filename = `${randomId().slice(0, 9)}_${Date.now()}${ext}`;
-    await env.IMAGES.put(filename, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type || MIME[ext] || 'application/octet-stream' },
-    });
+    const bytes = await file.arrayBuffer();
+    if (env.IMAGES) {
+      await env.IMAGES.put(filename, bytes);
+    }
+    if (env.PRODUCT_IMAGES) {
+      await env.PRODUCT_IMAGES.put(`products/${filename}`, bytes, {
+        httpMetadata: { contentType: file.type || MIME[ext] || 'application/octet-stream' },
+      });
+    }
     return json({ file_url: `/img/${filename}` });
   }
 
   if (path === '/api/fn/adminLogin' && method === 'POST') {
     const body = await readJson(request);
-    const password = String(body.password || '');
+    const password = String(body.password || '').trim();
     const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
       .bind('admin_password')
       .first();
-    const adminPass = row?.setting_value || '1234';
+    const adminPass = String(row?.setting_value || '1234').trim();
     if (!password || password !== adminPass) {
-      return json({ error: 'Incorrect password' }, 401);
+      return json({ error: 'Incorrect password. If you just moved to Cloudflare, try 1234 then change it in Settings.' }, 401);
     }
     const token = randomToken();
     const id = randomId();
@@ -280,10 +345,21 @@ async function handleApi(request, env) {
   }
 
   if (path.startsWith('/api/fn/') && method === 'POST') {
-    return json({ error: 'This account feature is being moved off Base44. Product catalog already runs on Cloudflare.' }, 501);
+    const name = path.slice('/api/fn/'.length);
+    const stub = fnStub(name);
+    const status = stub.error ? 501 : 200;
+    return json(stub, status);
   }
 
   return json({ error: 'not found' }, 404);
+}
+
+function imageResponse(body, contentType) {
+  const headers = new Headers();
+  headers.set('Content-Type', contentType || 'application/octet-stream');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('Access-Control-Allow-Origin', '*');
+  return new Response(body, { headers });
 }
 
 async function handleImage(request, env) {
@@ -291,20 +367,33 @@ async function handleImage(request, env) {
   if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return new Response('Not found', { status: 404 });
   }
+
   if (env.IMAGES) {
-    const object = await env.IMAGES.get(filename);
-    if (object) {
-      const headers = new Headers();
-      if (object.httpMetadata?.contentType) headers.set('Content-Type', object.httpMetadata.contentType);
-      else {
-        const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
-        headers.set('Content-Type', MIME[ext] || 'application/octet-stream');
-      }
-      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-      return new Response(object.body, { headers });
+    const data = await env.IMAGES.get(filename, { type: 'arrayBuffer' });
+    if (data && data.byteLength > 0) {
+      return imageResponse(data, mimeFor(filename));
     }
   }
-  return env.ASSETS.fetch(request);
+
+  if (env.PRODUCT_IMAGES) {
+    const object =
+      (await env.PRODUCT_IMAGES.get(`products/${filename}`)) ||
+      (await env.PRODUCT_IMAGES.get(filename));
+    if (object) {
+      const type = object.httpMetadata?.contentType || mimeFor(filename);
+      return imageResponse(object.body, type);
+    }
+  }
+
+  const asset = await fetchAsset(env, request, `/img/${filename}`);
+  const type = asset.headers.get('content-type') || '';
+  if (asset.ok && !type.includes('text/html')) {
+    const headers = new Headers(asset.headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return new Response(asset.body, { status: 200, headers });
+  }
+
+  return new Response('Not found', { status: 404 });
 }
 
 export default {

@@ -18,10 +18,11 @@ export default function AdminSlideshow() {
   const [imageFile, setImageFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const { data: slides = [] } = useQuery({
+  const { data: slidesData } = useQuery({
     queryKey: ['slideshow'],
     queryFn: () => store.slides.list(),
   });
+  const slides = Array.isArray(slidesData) ? slidesData : [];
 
   const deleteMut = useMutation({
     mutationFn: id => store.slides.delete(id),

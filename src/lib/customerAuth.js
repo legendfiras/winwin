@@ -79,7 +79,15 @@ async function invoke(name, payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload || {}),
   });
-  return res.json();
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return { error: res.ok ? 'Invalid server response' : `Admin login failed (${res.status})` };
+  }
+  if (!res.ok && !data.error) data.error = res.statusText || 'Request failed';
+  return data;
 }
 
 export async function invokeCustomer(name, payload = {}) {

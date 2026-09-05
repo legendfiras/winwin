@@ -5,6 +5,7 @@ import { join, extname } from 'node:path';
 const BUCKET = 'winwin-product-images';
 const PREFIX = 'products';
 const CANDIDATE_DIRS = [
+  join('public', 'img'),
   join('assets', 'products'),
   join('New folder', 'downloaded_images'),
   'downloaded_images',

@@ -23,9 +23,9 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await invokePublic('adminLogin', { password });
+      const data = await invokePublic('adminLogin', { password: password.trim() });
       if (data?.error || !data?.admin_session_token) {
-        toast.error(data?.error || 'Incorrect password');
+        toast.error(data?.error || 'Incorrect password. Try 1234 if you have not changed it yet.');
         return;
       }
       setAdminSessionToken(data.admin_session_token);
@@ -49,6 +49,9 @@ export default function AdminLogin() {
               <Shield className="w-8 h-8 text-primary" />
             </div>
             <CardTitle className="font-heading">Admin Access</CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Starter password is <span className="font-mono">1234</span> until you change it in Settings.
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">

@@ -24,18 +24,20 @@ export default function AdminDashboard() {
     },
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: productsData } = useQuery({
     queryKey: ['products'],
     queryFn: () => store.products.list(),
   });
+  const products = Array.isArray(productsData) ? productsData : [];
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
     queryFn: async () => [],
   });
-  const { data: settings = [] } = useQuery({
+  const { data: settingsData } = useQuery({
     queryKey: ['appSettings'],
     queryFn: () => store.settings.list(),
   });
+  const settings = Array.isArray(settingsData) ? settingsData : [];
 
   React.useEffect(() => {
     const fb = settings.find(s => s.setting_key === 'customer_feedback');

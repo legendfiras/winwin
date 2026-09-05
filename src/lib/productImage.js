@@ -20,14 +20,13 @@ export function productImageSrc(url) {
   }
   const filename = productImageFilename(url);
   if (!filename) return url;
-  const base = import.meta.env.VITE_PRODUCT_IMAGE_BASE_URL;
-  if (base) {
-    return `${String(base).replace(/\/$/, '')}/${filename}`;
-  }
   return `/img/${filename}`;
 }
 
 export function productImageFallback(event) {
   const img = event.currentTarget;
-  img.style.visibility = 'hidden';
+  if (img.dataset.fallbackApplied) return;
+  img.dataset.fallbackApplied = '1';
+  img.style.objectFit = 'contain';
+  img.alt = img.alt || 'Photo unavailable';
 }

@@ -47,6 +47,22 @@ function serveLocalStore() {
           res.end('[]')
           return
         }
+        if (req.method === 'POST' && url === '/api/fn/adminLogin') {
+          let body = ''
+          req.on('data', (chunk) => { body += chunk })
+          req.on('end', () => {
+            let password = ''
+            try { password = String(JSON.parse(body || '{}').password || '').trim() } catch { password = '' }
+            res.setHeader('Content-Type', 'application/json')
+            if (password === '1234') {
+              res.end(JSON.stringify({ success: true, admin_session_token: 'local-dev-token', admin_session_id: 'local' }))
+              return
+            }
+            res.statusCode = 401
+            res.end(JSON.stringify({ error: 'Incorrect password. Local starter password is 1234.' }))
+          })
+          return
+        }
         next()
       })
     },

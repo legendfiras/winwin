@@ -14,37 +14,29 @@ async function listImages(dir) {
   return names.filter((name) => IMAGE_EXT.has(extname(name).toLowerCase()));
 }
 
-async function findImageDir() {
+async function main() {
+  await mkdir(DEST, { recursive: true });
+  let copied = 0;
   for (const dir of CANDIDATE_DIRS) {
+    let files = [];
     try {
       const info = await stat(dir);
       if (!info.isDirectory()) continue;
-      const files = await listImages(dir);
-      if (files.length > 0) return { dir, files };
+      files = await listImages(dir);
     } catch {
-      // try next
+      continue;
     }
+    if (files.length === 0) continue;
+    console.log(`Copying ${files.length} images from ${dir} to ${DEST}`);
+    await Promise.all(files.map((name) => cp(join(dir, name), join(DEST, name))));
+    copied += files.length;
   }
-  return null;
-}
-
-async function main() {
-  const found = await findImageDir();
-  if (!found) {
-    const existing = await listImages(DEST).catch(() => []);
-    if (existing.length > 0) {
-      console.log(`Using ${existing.length} images already in ${DEST}`);
-      return;
-    }
+  const existing = await listImages(DEST).catch(() => []);
+  if (existing.length === 0) {
     console.warn('No local product images found; /img will be empty in this build.');
     return;
   }
-
-  await mkdir(DEST, { recursive: true });
-  const { dir, files } = found;
-  console.log(`Copying ${files.length} images from ${dir} to ${DEST}`);
-  await Promise.all(files.map((name) => cp(join(dir, name), join(DEST, name))));
-  console.log('Product images are ready at /img/<filename>.');
+  console.log(`${existing.length} product images are ready at /img/<filename> (${copied} copied this run).`);
 }
 
 main().catch((err) => {
