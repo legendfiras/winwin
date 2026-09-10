@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { resolveProductCategory } from '../src/lib/categories.js';
 
 const CSV_PATH = 'Product_export.csv';
 const OUT_PATH = join('public', 'data', 'products.json');
@@ -111,7 +112,7 @@ async function main() {
       description: row.description || '',
       price: Number(row.price) || 0,
       points_price: Number(row.points_price) || 0,
-      category: row.category || 'must_have',
+      category: resolveProductCategory({ id: row.id, category: row.category || 'must_have' }),
       image_url: localImageUrl(row.image_url),
       in_stock: String(row.in_stock).toLowerCase() !== 'false',
       created_date: row.created_date || new Date().toISOString(),

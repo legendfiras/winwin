@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS products (
   updated_date TEXT
 );
 
+CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);
+CREATE INDEX IF NOT EXISTS idx_products_created_date ON products (created_date);
+
 CREATE TABLE IF NOT EXISTS settings (
   setting_key TEXT PRIMARY KEY,
   setting_value TEXT,

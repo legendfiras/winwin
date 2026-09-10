@@ -13,21 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { pointsPriceFromUsd, formatPoints } from '@/lib/pointsTiers';
+import { ADMIN_CATEGORIES } from '@/lib/categories';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
-
-const CATEGORIES = [
-  { key: 'home_appliance', label: 'Home Appliance' },
-  { key: 'home_essentials', label: 'Home Essentials' },
-  { key: 'phone_accessories', label: 'Phone Accessories' },
-  { key: 'toys', label: 'Toys' },
-  { key: 'new_gadgets', label: 'New Gadgets' },
-  { key: 'must_have', label: 'Must Have' },
-  { key: 'beauty_care', label: 'Beauty Care' },
-  { key: 'fans', label: 'Fans' },
-  { key: 'shavers', label: 'Shavers' },
-  { key: 'silkapils', label: 'Silkapils' },
-  { key: 'hair_care', label: 'Hair Care' },
-];
 
 const emptyProduct = { name: '', description: '', price: 0, points_price: 0, category: 'home_appliance', image_url: '', in_stock: true };
 
@@ -166,7 +153,7 @@ export default function AdminProducts() {
               <Select value={form.category} onValueChange={v => setForm({...form, category: v})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map(c => (
+                  {ADMIN_CATEGORIES.map(c => (
                     <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
                   ))}
                 </SelectContent>

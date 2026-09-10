@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { store } from '@/api/store';
 import { getCustomer, setCustomer as saveCustomer, clearCustomer, invokeCustomer, isCardActive } from '@/lib/customerAuth';
 import { activationPath } from '@/lib/accountGuards';
-import { pointsPriceFromUsd } from '@/lib/pointsTiers';
+import { canRedeemProduct, productPointsCost } from '@/lib/pointsTiers';
+import { openRedeemWhatsApp, redeemProductRequest } from '@/lib/redeemProduct';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
 import { useSettings } from '@/lib/useSettings';
 import Storefront from '@/components/Storefront';
@@ -87,36 +88,29 @@ export default function MyAccount() {
   });
 
   const redeemMut = useMutation({
-    mutationFn: ({ product }) => invokeCustomer('redeemProduct', { product_id: product.id }),
+    mutationFn: ({ product }) => redeemProductRequest(product),
     onSuccess: (data, vars) => {
-      if (data?.error) {
-        toast.error(data.error);
-        return;
-      }
       if (data.customer) {
         setCustomerState(data.customer);
         saveCustomer(data.customer);
       }
       setRedeemOpen(false);
       toast.success(`"${vars.product.name}" redeemed! ${data.points_used} points deducted. We'll contact you soon!`);
-      const whatsappNumber = getSetting('whatsapp_number', '0096178714472');
-      const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '').replace(/^0+/, '');
-      const ambassadorInfo = customerRef.current?.ambassador_code ? `\nAmbassador Code: ${customerRef.current.ambassador_code}` : '';
-      const waMsg = encodeURIComponent(
-        `Redemption Alert!\n\nCustomer: ${customerRef.current.full_name}\nEmail: ${customerRef.current.email}\nMobile: ${customerRef.current.mobile}${ambassadorInfo}\n\nRequested Item: ${vars.product.name}\nPoints Used: ${data.points_used}\nRemaining Points: ${data.customer?.points ?? ''}\n\nPlease process this order!`
-      );
-      window.open(`https://wa.me/${cleanNumber}?text=${waMsg}`, '_blank');
+      openRedeemWhatsApp({
+        product: vars.product,
+        customer: data.customer || customerRef.current,
+        pointsUsed: data.points_used,
+        remaining: data.customer?.points,
+        whatsappNumber: getSetting('whatsapp_number', '0096178714472'),
+      });
       qc.invalidateQueries({ queryKey: ['ledger'] });
     },
-    onError: () => toast.error('Redemption failed. Try again.'),
+    onError: (err) => toast.error(err.message || 'Redemption failed. Try again.'),
   });
 
   const openRedeem = async () => {
     const products = await store.products.list();
-    const eligible = products.filter(p => {
-      const cost = p.points_price > 0 ? p.points_price : pointsPriceFromUsd(p.price);
-      return cost > 0 && p.in_stock && (customer.points || 0) >= cost;
-    });
+    const eligible = products.filter((p) => canRedeemProduct(p, customer));
     setRedeemableProducts(eligible);
     setRedeemOpen(true);
   };
@@ -312,7 +306,7 @@ export default function MyAccount() {
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                   {redeemableProducts.map(p => {
-                    const cost = p.points_price > 0 ? p.points_price : pointsPriceFromUsd(p.price);
+                    const cost = productPointsCost(p);
                     return (
                       <div key={p.id} className="flex items-center gap-3 p-3 border rounded-lg">
                         {p.image_url && (

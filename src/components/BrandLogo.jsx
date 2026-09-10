@@ -5,7 +5,7 @@ export default function BrandLogo({ className = '' }) {
   return (
     <span
       className={cn(
-        'inline-flex h-10 w-[148px] shrink-0 items-center overflow-visible md:h-12 md:w-[176px]',
+        'inline-flex h-10 w-[148px] shrink-0 items-center overflow-hidden md:h-11 md:w-[160px]',
         className,
       )}
     >
@@ -15,7 +15,7 @@ export default function BrandLogo({ className = '' }) {
         width={280}
         height={80}
         decoding="async"
-        className="block h-full w-full max-w-none object-contain object-left"
+        className="block h-full w-full object-contain object-left"
       />
     </span>
   );

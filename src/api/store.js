@@ -25,9 +25,20 @@ async function request(path, options = {}) {
   return data;
 }
 
+function productsQuery(opts = {}) {
+  const params = new URLSearchParams();
+  if (opts.page != null) params.set('page', String(opts.page));
+  if (opts.limit != null) params.set('limit', String(opts.limit));
+  if (opts.cat) params.set('cat', opts.cat);
+  if (opts.q) params.set('q', opts.q);
+  if (opts.sort) params.set('sort', opts.sort);
+  const qs = params.toString();
+  return qs ? `/api/products?${qs}` : '/api/products';
+}
+
 export const store = {
   products: {
-    list: () => request('/api/products'),
+    list: (opts) => request(productsQuery(opts)),
     create: (data) => request('/api/products', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => request(`/api/products/${id}`, { method: 'DELETE' }),

@@ -8,6 +8,7 @@ import { categoryLabel } from '@/lib/categories';
 import { useCart } from '@/lib/cart';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
 import PriceDisplay from '@/components/PriceDisplay';
+import ProductPointsInfo from '@/components/ProductPointsInfo';
 import { toast } from 'sonner';
 
 function ProductCard({ product }) {
@@ -54,6 +55,7 @@ function ProductCard({ product }) {
           </h3>
           <div className="mt-auto pt-2">
             <PriceDisplay price={product.price} hasCard={hasCard} compact />
+            <ProductPointsInfo product={product} customer={customer} compact />
           </div>
         </div>
       </Link>

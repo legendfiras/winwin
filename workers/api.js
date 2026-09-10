@@ -1,4 +1,14 @@
 import { ensureCustomerSchema, handleCustomerFn, customerFromToken, saveCheckoutAddress } from './customers.js';
+import {
+  PRODUCTS_PER_PAGE,
+  CATEGORY_ALIASES,
+  PRODUCT_CATEGORY_OVERRIDES,
+  CANONICAL_CATEGORIES,
+  categoryKeysForFilter,
+  categoryLabel,
+  normalizeCategory,
+  resolveProductCategory,
+} from '../src/lib/categories.js';
 
 const MIME = {
   '.jpg': 'image/jpeg',
@@ -52,6 +62,7 @@ function productFromRow(row) {
   if (!row) return null;
   return {
     ...row,
+    category: resolveProductCategory(row),
     in_stock: Boolean(row.in_stock),
     price: Number(row.price) || 0,
     points_price: Number(row.points_price) || 0,
@@ -367,7 +378,7 @@ async function upsertProducts(env, products) {
         p.description || '',
         Number(p.price) || 0,
         Number(p.points_price) || 0,
-        p.category || 'must_have',
+        resolveProductCategory(p),
         p.image_url || '',
         p.in_stock === false ? 0 : 1,
         p.created_date || nowIso(),
@@ -379,36 +390,176 @@ async function upsertProducts(env, products) {
   }
 }
 
+async function ensureProductIndexes(env) {
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_products_category ON products (category)',
+  ).run();
+  await env.DB.prepare(
+    'CREATE INDEX IF NOT EXISTS idx_products_created_date ON products (created_date)',
+  ).run();
+}
+
+async function migrateCategories(env) {
+  const version = 'v1';
+  const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
+    .bind('categories_norm')
+    .first();
+  if (row?.setting_value === version) return;
+
+  for (const [id, category] of Object.entries(PRODUCT_CATEGORY_OVERRIDES)) {
+    await env.DB.prepare('UPDATE products SET category = ?, updated_date = ? WHERE id = ?')
+      .bind(category, nowIso(), id)
+      .run();
+  }
+
+  for (const [from, to] of Object.entries(CATEGORY_ALIASES)) {
+    if (!from || from === to) continue;
+    await env.DB.prepare(
+      'UPDATE products SET category = ?, updated_date = ? WHERE category = ? OR lower(trim(category)) = ?',
+    )
+      .bind(to, nowIso(), from, String(from).toLowerCase())
+      .run();
+  }
+
+  await env.DB.prepare(
+    "UPDATE products SET category = trim(replace(replace(replace(category, char(9), ' '), char(13), ' '), char(10), ' ')) WHERE category IS NOT NULL",
+  ).run();
+  await env.DB.prepare(
+    "UPDATE products SET category = 'must_have', updated_date = ? WHERE category IS NULL OR trim(category) = ''",
+  )
+    .bind(nowIso())
+    .run();
+
+  if (row) {
+    await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
+      .bind(version, 'categories_norm')
+      .run();
+  } else {
+    await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
+      .bind('categories_norm', version, randomId())
+      .run();
+  }
+}
+
+async function categoryCountsFromDb(env) {
+  const { results } = await env.DB.prepare(
+    'SELECT category, COUNT(*) AS n FROM products GROUP BY category',
+  ).all();
+  const counts = {};
+  for (const row of results || []) {
+    const key = normalizeCategory(row.category);
+    counts[key] = (counts[key] || 0) + Number(row.n || 0);
+  }
+  return counts;
+}
+
+function likeQuery(raw) {
+  return `%${String(raw || '').replace(/[%_]/g, '')}%`;
+}
+
+async function listProductsPaged(env, url) {
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || PRODUCTS_PER_PAGE));
+  let page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const cat = url.searchParams.get('cat') || '';
+  const q = String(url.searchParams.get('q') || '').trim();
+  const sort = url.searchParams.get('sort') || 'featured';
+
+  const keys = categoryKeysForFilter(cat);
+  const where = [];
+  const binds = [];
+
+  if (keys?.length) {
+    where.push(`category IN (${keys.map(() => '?').join(',')})`);
+    binds.push(...keys);
+  }
+
+  if (q) {
+    const like = likeQuery(q);
+    const labelKeys = CANONICAL_CATEGORIES.filter((key) => {
+      const hay = `${key} ${categoryLabel(key)}`.toLowerCase();
+      return hay.includes(q.toLowerCase());
+    });
+    if (labelKeys.length) {
+      where.push(
+        `(name LIKE ? OR description LIKE ? OR category LIKE ? OR category IN (${labelKeys.map(() => '?').join(',')}))`,
+      );
+      binds.push(like, like, like, ...labelKeys);
+    } else {
+      where.push('(name LIKE ? OR description LIKE ? OR category LIKE ?)');
+      binds.push(like, like, like);
+    }
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  let orderSql = 'ORDER BY datetime(created_date) DESC';
+  if (sort === 'price_asc') orderSql = 'ORDER BY price ASC, datetime(created_date) DESC';
+  if (sort === 'price_desc') orderSql = 'ORDER BY price DESC, datetime(created_date) DESC';
+
+  const countRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM products ${whereSql}`)
+    .bind(...binds)
+    .first();
+  const total = Number(countRow?.n) || 0;
+  const pageCount = Math.max(1, Math.ceil(total / limit) || 1);
+  if (page > pageCount) page = pageCount;
+  const offset = (page - 1) * limit;
+
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM products ${whereSql} ${orderSql} LIMIT ? OFFSET ?`,
+  )
+    .bind(...binds, limit, offset)
+    .all();
+
+  return {
+    items: (results || []).map(productFromRow),
+    total,
+    page,
+    limit,
+    page_count: pageCount,
+    category_counts: await categoryCountsFromDb(env),
+  };
+}
+
 async function ensureCatalog(env, request) {
   await ensureSettings(env);
   await ensureTransactions(env);
   await ensureCustomerSchema(env);
-  const res = await fetchAsset(env, request, '/data/products.json');
-  if (!res.ok) return;
-  const text = await res.text();
-  const hash = await sha256(text);
-  const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
-    .bind('catalog_hash')
-    .first();
-  if (row?.setting_value === hash) return;
-  let products;
   try {
-    products = JSON.parse(text);
+    await ensureProductIndexes(env);
   } catch {
-    return;
+    /* products table may not exist yet */
   }
-  await upsertProducts(env, products);
-  const existing = await env.DB.prepare('SELECT setting_key FROM settings WHERE setting_key = ?')
-    .bind('catalog_hash')
-    .first();
-  if (existing) {
-    await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
-      .bind(hash, 'catalog_hash')
-      .run();
-  } else {
-    await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
-      .bind('catalog_hash', hash, randomId())
-      .run();
+  const res = await fetchAsset(env, request, '/data/products.json');
+  if (res.ok) {
+    const text = await res.text();
+    const hash = await sha256(text);
+    const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
+      .bind('catalog_hash')
+      .first();
+    if (row?.setting_value !== hash) {
+      let products;
+      try {
+        products = JSON.parse(text);
+      } catch {
+        products = null;
+      }
+      if (products) {
+        await upsertProducts(env, products);
+        if (row) {
+          await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
+            .bind(hash, 'catalog_hash')
+            .run();
+        } else {
+          await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
+            .bind('catalog_hash', hash, randomId())
+            .run();
+        }
+      }
+    }
+  }
+  try {
+    await migrateCategories(env);
+  } catch {
+    /* ignore until products table exists */
   }
 }
 
@@ -456,8 +607,11 @@ async function handleApi(request, env) {
   }
 
   if (path === '/api/products' && method === 'GET') {
+    if (url.searchParams.has('page') || url.searchParams.has('limit')) {
+      return json(await listProductsPaged(env, url));
+    }
     const { results } = await env.DB.prepare(
-      'SELECT * FROM products ORDER BY created_date DESC',
+      'SELECT * FROM products ORDER BY datetime(created_date) DESC',
     ).all();
     return json((results || []).map(productFromRow));
   }
@@ -477,7 +631,7 @@ async function handleApi(request, env) {
         body.description || '',
         Number(body.price) || 0,
         Number(body.points_price) || 0,
-        body.category || 'must_have',
+        resolveProductCategory({ id, category: body.category }),
         body.image_url || '',
         body.in_stock === false ? 0 : 1,
         created,
@@ -505,7 +659,7 @@ async function handleApi(request, env) {
         next.description || '',
         Number(next.price) || 0,
         Number(next.points_price) || 0,
-        next.category || 'must_have',
+        resolveProductCategory(next),
         next.image_url || '',
         next.in_stock === false || next.in_stock === 0 ? 0 : 1,
         next.updated_date,

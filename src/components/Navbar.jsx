@@ -21,7 +21,7 @@ function NavLink({ to, children }) {
   return (
     <Link
       to={to}
-      className="inline-flex h-11 items-center rounded-[10px] px-3 text-sm font-medium text-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex h-10 shrink-0 items-center rounded-[10px] px-2.5 text-sm font-medium text-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:h-11 lg:px-3"
     >
       {children}
     </Link>
@@ -50,23 +50,23 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[rgba(201,176,130,0.22)] bg-[rgba(251,248,242,0.86)] backdrop-blur-md">
-      <Container className="flex h-16 min-w-0 items-center gap-2 overflow-visible md:h-[4.25rem] md:gap-6">
-        <Link to="/" className="relative z-10 flex h-10 w-[148px] shrink-0 items-center md:h-12 md:w-[176px]" aria-label="WinWin home">
-          <BrandLogo className="h-full w-full" />
+    <header className="sticky top-0 z-50 isolate border-b border-[rgba(201,176,130,0.22)] bg-[#FBF8F2]">
+      <Container className="relative flex h-16 items-center gap-2 md:h-[4.25rem] md:gap-3 lg:gap-5">
+        <Link to="/" className="relative z-10 shrink-0 overflow-hidden" aria-label="WinWin home">
+          <BrandLogo />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+        <nav className="relative z-10 hidden min-w-0 flex-1 items-center md:flex" aria-label="Primary">
           <NavLink to="/">Shop</NavLink>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-11 rounded-[10px] px-3 text-sm font-medium">
+              <Button variant="ghost" className="h-10 shrink-0 rounded-[10px] px-2.5 text-sm font-medium lg:h-11 lg:px-3">
                 Categories
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              {PRIMARY_CATEGORIES.filter((item) => item.key !== 'all').map((item) => (
+            <DropdownMenuContent align="start" className="z-[60] w-56">
+              {PRIMARY_CATEGORIES.map((item) => (
                 <DropdownMenuItem key={item.key} asChild>
                   <Link to={`/?cat=${item.key}`}>{item.label}</Link>
                 </DropdownMenuItem>
@@ -82,24 +82,24 @@ export default function Navbar() {
           <NavLink to="/winwin-card">WinWin Card</NavLink>
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-1">
           <HeaderSearch />
           {customer ? (
-            <span className="hidden items-center rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground lg:inline-flex">
+            <span className="hidden items-center rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground xl:inline-flex">
               {formatPoints(customer.points)}
             </span>
           ) : null}
           <CartButton />
           {customer ? (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="hidden h-11 rounded-[10px] px-3 md:inline-flex">
-                  <User className="h-4 w-4" />
-                  {firstName}
-                  <ChevronDown className="h-4 w-4" />
+                <Button variant="ghost" className="hidden h-10 max-w-[9.5rem] rounded-[10px] px-2.5 md:inline-flex lg:h-11 lg:px-3">
+                  <User className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{firstName}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuContent align="end" className="z-[60] w-52">
                 <DropdownMenuItem asChild>
                   <Link to="/my-account">Account</Link>
                 </DropdownMenuItem>

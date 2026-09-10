@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { applyCatalogQuery } from './src/lib/categories.js'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const localImageDirs = [
@@ -33,6 +34,19 @@ function serveLocalStore() {
         const url = (req.url || '').split('?')[0]
         if (req.method === 'GET' && url === '/api/products') {
           const products = jsonFile(path.join('public', 'data', 'products.json')) || []
+          const parsed = new URL(req.url, 'http://localhost')
+          if (parsed.searchParams.has('page') || parsed.searchParams.has('limit')) {
+            const catalog = applyCatalogQuery(products, {
+              cat: parsed.searchParams.get('cat') || '',
+              q: parsed.searchParams.get('q') || '',
+              sort: parsed.searchParams.get('sort') || 'featured',
+              page: parsed.searchParams.get('page'),
+              limit: parsed.searchParams.get('limit'),
+            })
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(catalog))
+            return
+          }
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify(products))
           return

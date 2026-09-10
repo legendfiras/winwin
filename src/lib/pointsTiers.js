@@ -14,6 +14,24 @@ export function pointsPriceFromUsd(price) {
   return Math.round(n * 100);
 }
 
+export function productPointsCost(product) {
+  const stored = Number(product?.points_price);
+  if (Number.isFinite(stored) && stored > 0) return Math.round(stored);
+  return pointsPriceFromUsd(product?.price);
+}
+
+export function canRedeemProduct(product, customer) {
+  const cost = productPointsCost(product);
+  const points = Number(customer?.points) || 0;
+  return Boolean(customer) && product?.in_stock !== false && cost > 0 && points >= cost;
+}
+
+export function pointsShortfall(product, customer) {
+  const cost = productPointsCost(product);
+  const points = Number(customer?.points) || 0;
+  return Math.max(0, cost - points);
+}
+
 export function formatPoints(points) {
   return `${Number(points || 0).toLocaleString()} pts`;
 }

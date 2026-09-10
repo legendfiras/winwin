@@ -71,7 +71,7 @@ function App() {
           <CheckoutDialog />
         </Router>
         <Toaster />
-        <SonnerToaster position="top-center" richColors />
+        <SonnerToaster position="top-center" richColors offset={72} />
       </CartProvider>
     </QueryClientProvider>
   )

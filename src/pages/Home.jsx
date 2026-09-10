@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { store } from '@/api/store';
 import Storefront from '@/components/Storefront';
 import Container from '@/components/Container';
@@ -9,51 +9,58 @@ import CategoryFilter from '@/components/CategoryFilter';
 import ProductSearchBar from '@/components/ProductSearchBar';
 import ProductCard from '@/components/ProductCard';
 import ProductCardSkeleton from '@/components/ProductCardSkeleton';
+import CatalogPagination from '@/components/CatalogPagination';
 import PullToRefresh from '@/components/PullToRefresh';
 import CustomerFeedback from '@/components/CustomerFeedback';
 import EmptyState from '@/components/EmptyState';
 import { getCustomer, getSessionToken, invokeCustomer } from '@/lib/customerAuth';
-import { categoryMatches, matchesSearch, sortProducts, SORT_OPTIONS, categoryLabel } from '@/lib/categories';
+import { PRODUCTS_PER_PAGE, SORT_OPTIONS, categoryLabel } from '@/lib/categories';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
 
-const FILTER_STORAGE_KEY = 'home_category_filter';
-
 export default function Home() {
   const [params, setParams] = useSearchParams();
-  const [search, setSearch] = useState(params.get('q') || '');
-  const [sort, setSort] = useState(params.get('sort') || 'featured');
+  const rawCat = params.get('cat') || '';
+  const category = rawCat === 'all' ? '' : rawCat;
+  const sort = params.get('sort') || 'featured';
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  const qParam = params.get('q') || '';
+  const [search, setSearch] = useState(qParam);
   const [account, setAccount] = useState(getCustomer());
-  const debouncedSearch = useDebouncedValue(search, 200);
+  const debouncedSearch = useDebouncedValue(qParam, 200);
 
-  const category = params.get('cat') || (() => {
-    try {
-      return sessionStorage.getItem(FILTER_STORAGE_KEY) || 'all';
-    } catch {
-      return 'all';
+  const updateParams = (patch) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(patch)) {
+      const empty =
+        value == null ||
+        value === '' ||
+        (key === 'page' && Number(value) <= 1) ||
+        (key === 'sort' && value === 'featured');
+      if (empty) next.delete(key);
+      else next.set(key, String(value));
     }
-  })();
+    setParams(next, { replace: true });
+  };
 
   const handleCategoryChange = (cat) => {
-    const next = new URLSearchParams(params);
-    if (!cat || cat === 'all') next.delete('cat');
-    else next.set('cat', cat);
-    setParams(next, { replace: true });
-    try {
-      sessionStorage.setItem(FILTER_STORAGE_KEY, cat);
-    } catch {
-      /* ignore */
-    }
+    updateParams({ cat: cat || '', page: 1 });
+  };
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    updateParams({ q: value, page: 1 });
+  };
+
+  const clearCatalogFilters = () => {
+    setSearch('');
+    updateParams({ cat: '', q: '', page: 1 });
   };
 
   useEffect(() => {
-    try {
-      sessionStorage.setItem(FILTER_STORAGE_KEY, category);
-    } catch {
-      /* ignore */
-    }
-  }, [category]);
+    setSearch(qParam);
+  }, [qParam]);
 
   useEffect(() => {
     if (!getSessionToken()) return;
@@ -62,20 +69,32 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
-  const { data: productsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => store.products.list(),
+  const { data: catalog, isLoading, isError, refetch } = useQuery({
+    queryKey: ['catalog', page, category, debouncedSearch, sort],
+    queryFn: () =>
+      store.products.list({
+        page,
+        limit: PRODUCTS_PER_PAGE,
+        cat: category,
+        q: debouncedSearch,
+        sort,
+      }),
+    placeholderData: keepPreviousData,
   });
-  const products = Array.isArray(productsData) ? productsData : [];
 
-  const filtered = useMemo(() => {
-    const next = products.filter((product) => (
-      categoryMatches(product.category, category) && matchesSearch(product, debouncedSearch)
-    ));
-    return sortProducts(next, sort);
-  }, [products, category, debouncedSearch, sort]);
+  const products = Array.isArray(catalog?.items) ? catalog.items : [];
+  const total = Number(catalog?.total) || 0;
+  const pageCount = Number(catalog?.page_count) || 1;
+  const currentPage = Number(catalog?.page) || page;
+  const categoryCounts = catalog?.category_counts || null;
+  const categoryTitle = category ? categoryLabel(category) : null;
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
+  const rangeEnd = Math.min(total, currentPage * PRODUCTS_PER_PAGE);
 
-  const categoryTitle = category === 'all' ? null : categoryLabel(category);
+  const handlePageChange = (nextPage) => {
+    updateParams({ page: nextPage });
+    document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <Storefront>
@@ -87,15 +106,27 @@ export default function Home() {
         <section id="shop" className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-h1">Shop</h2>
+              <h2 className="text-h1">
+                <button
+                  type="button"
+                  onClick={clearCatalogFilters}
+                  className="rounded-[10px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  Shop
+                </button>
+              </h2>
               <p className="mt-1 text-muted-foreground">
-                Discover the latest products and WinWin deals.
-                {products.length > 0 ? (
-                  <span className="ml-2 text-sm tabular-nums">{products.length} products</span>
+                {categoryTitle
+                  ? `Showing ${categoryTitle}.`
+                  : 'Discover the latest products and WinWin deals. $1 = 100 points.'}
+                {total > 0 ? (
+                  <span className="ml-2 text-sm tabular-nums">
+                    {rangeStart}–{rangeEnd} of {total}
+                  </span>
                 ) : null}
               </p>
             </div>
-            <Select value={sort} onValueChange={setSort}>
+            <Select value={sort} onValueChange={(value) => updateParams({ sort: value, page: 1 })}>
               <SelectTrigger className="h-11 w-full rounded-[10px] bg-white sm:w-52" aria-label="Sort products">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
@@ -107,8 +138,8 @@ export default function Home() {
             </Select>
           </div>
 
-          <ProductSearchBar value={search} onChange={setSearch} />
-          <CategoryFilter active={category} onChange={handleCategoryChange} />
+          <ProductSearchBar value={search} onChange={handleSearchChange} />
+          <CategoryFilter active={category} onChange={handleCategoryChange} counts={categoryCounts} />
         </section>
 
         <PullToRefresh onRefresh={refetch}>
@@ -125,26 +156,30 @@ export default function Home() {
               actionLabel="Try Again"
               onAction={() => refetch()}
             />
-          ) : filtered.length === 0 ? (
+          ) : products.length === 0 ? (
             <EmptyState
               icon={Search}
               title={debouncedSearch.trim()
                 ? `No products found for “${debouncedSearch.trim()}”`
                 : categoryTitle
                   ? `No products are currently available in ${categoryTitle}.`
-                  : 'No products are currently available in this category.'}
-              description={debouncedSearch.trim() ? 'Try another search or browse all products.' : undefined}
-              actionLabel={debouncedSearch.trim() ? 'Clear Search' : 'View all products'}
-              onAction={() => {
-                setSearch('');
-                handleCategoryChange('all');
-              }}
+                  : 'No products are currently available.'}
+              description={debouncedSearch.trim() || categoryTitle ? 'Try another search or browse the full catalog.' : undefined}
+              actionLabel={debouncedSearch.trim() || categoryTitle ? 'View all products' : undefined}
+              onAction={clearCatalogFilters}
             />
           ) : (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-4 min-[1440px]:grid-cols-5">
-              {filtered.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-4 min-[1440px]:grid-cols-5">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+              <CatalogPagination
+                page={currentPage}
+                pageCount={pageCount}
+                onPageChange={handlePageChange}
+              />
             </div>
           )}
         </PullToRefresh>
