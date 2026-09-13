@@ -1,3 +1,4 @@
+import { corsHeaders } from '../src/lib/allowedOrigins.js';
 import {
   ACCOUNT_SOURCE,
   MIGRATION_STATUS,
@@ -23,7 +24,7 @@ const PBKDF2_ITERS = 100000;
 function json(data, status = 200) {
   return Response.json(data, {
     status,
-    headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' },
+    headers: { ...corsHeaders(), 'Cache-Control': 'no-store' },
   });
 }
 

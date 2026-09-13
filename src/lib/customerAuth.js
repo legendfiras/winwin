@@ -1,3 +1,5 @@
+import { apiUrl } from '@/lib/apiConfig';
+
 const CUSTOMER_KEY = 'winwin_customer';
 const SESSION_KEY = 'winwin_session';
 const ADMIN_KEY = 'winwin_admin';
@@ -74,19 +76,49 @@ export function isCardActive(customer = getCustomer()) {
 }
 
 async function invoke(name, payload) {
-  const res = await fetch(`/api/fn/${name}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload || {}),
-  });
+  const url = apiUrl(`/api/fn/${name}`);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+  } catch (err) {
+    console.error('[WinWin API] function request failed', {
+      endpoint: url,
+      method: 'POST',
+      status: 0,
+      error: err?.message || String(err),
+      responseBody: null,
+    });
+    return { error: err?.message || 'Network error' };
+  }
   const text = await res.text();
   let data = {};
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    return { error: res.ok ? 'Invalid server response' : `Admin login failed (${res.status})` };
+    console.error('[WinWin API] function request failed', {
+      endpoint: url,
+      method: 'POST',
+      status: res.status,
+      contentType: res.headers.get('content-type') || '',
+      error: 'Response was not JSON',
+      responseBody: text.slice(0, 500),
+    });
+    return { error: res.ok ? 'Invalid server response' : `Request failed (${res.status})` };
   }
   if (!res.ok && !data.error) data.error = res.statusText || 'Request failed';
+  if (!res.ok) {
+    console.error('[WinWin API] function request failed', {
+      endpoint: url,
+      method: 'POST',
+      status: res.status,
+      error: data.error,
+      responseBody: text.slice(0, 1000),
+    });
+  }
   return data;
 }
 

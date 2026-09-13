@@ -22,8 +22,11 @@ database_id = "6bc71f7e-5f33-4627-a0e8-607aabc9c6c2"
 binding = "IMAGES"
 id = "2224090d2ada49b290b846af15271c92"
 
+# Custom domain winwinleb.com is currently on Cloudflare Pages (static SPA).
+# Do not add [[routes]] custom_domain here while Pages owns that hostname.
+# The frontend on winwinleb.com calls this Worker API at workers.dev.
 # Optional customer email (password setup + verification):
 # wrangler secret put RESEND_API_KEY
 # wrangler secret put MAIL_FROM
 # [vars]
-# APP_ORIGIN = "https://winwin.firaskotob508.workers.dev""
+# APP_ORIGIN = "https://winwinleb.com"

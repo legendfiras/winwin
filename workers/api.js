@@ -1,3 +1,4 @@
+import { corsHeaders } from '../src/lib/allowedOrigins.js';
 import { ensureCustomerSchema, handleCustomerFn, customerFromToken, saveCheckoutAddress } from './customers.js';
 import {
   PRODUCTS_PER_PAGE,
@@ -28,10 +29,12 @@ const DEFAULT_SETTINGS = [
   ['customer_feedback', ''],
 ];
 
+let currentRequest = null;
+
 function json(data, status = 200) {
   return Response.json(data, {
     status,
-    headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' },
+    headers: { ...corsHeaders(currentRequest), 'Cache-Control': 'no-store' },
   });
 }
 
@@ -585,18 +588,13 @@ function fnStub(name) {
 }
 
 async function handleApi(request, env) {
+  currentRequest = request;
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '') || '/';
   const method = request.method;
 
   if (method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Token',
-      },
-    });
+    return new Response(null, { headers: corsHeaders(request) });
   }
 
   await ensureCatalog(env, request);
@@ -847,6 +845,7 @@ async function handleImage(request, env) {
 
 export default {
   async fetch(request, env) {
+    currentRequest = request;
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       try {
