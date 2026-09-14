@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { store } from '@/api/store';
+import { store, asProducts } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,24 +25,25 @@ export default function AdminProducts() {
   const [form, setForm] = useState(emptyProduct);
   const [uploading, setUploading] = useState(false);
 
-  const { data: products = [] } = useQuery({
-    queryKey: ['products'],
+  const { data: productsData } = useQuery({
+    queryKey: ['admin-products'],
     queryFn: () => store.products.list(),
   });
+  const products = asProducts(productsData);
 
   const createMut = useMutation({
     mutationFn: d => store.products.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); close(); toast.success('Product added!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-products'] }); qc.invalidateQueries({ queryKey: ['catalog'] }); close(); toast.success('Product added!'); },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => store.products.update(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); close(); toast.success('Product updated!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-products'] }); qc.invalidateQueries({ queryKey: ['catalog'] }); close(); toast.success('Product updated!'); },
   });
 
   const deleteMut = useMutation({
     mutationFn: id => store.products.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); toast.success('Product deleted!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-products'] }); qc.invalidateQueries({ queryKey: ['catalog'] }); toast.success('Product deleted!'); },
   });
 
   function close() {
@@ -82,9 +83,9 @@ export default function AdminProducts() {
 
   return (
     <AdminLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="font-heading font-bold text-2xl">Products</h1>
-        <Button onClick={() => { setForm(emptyProduct); setEditing(null); setDialogOpen(true); }}>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="font-heading text-xl font-bold sm:text-2xl">Products</h1>
+        <Button className="h-11 w-full sm:w-auto" onClick={() => { setForm(emptyProduct); setEditing(null); setDialogOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" /> Add Product
         </Button>
       </div>

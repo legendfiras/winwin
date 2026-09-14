@@ -11,7 +11,7 @@ import PriceDisplay from '@/components/PriceDisplay';
 import ProductPointsInfo from '@/components/ProductPointsInfo';
 import { toast } from 'sonner';
 
-function ProductCard({ product }) {
+function ProductCard({ product, priority = false }) {
   const customer = getCustomer();
   const { addItem } = useCart();
   const hasCard = isCardActive(customer);
@@ -33,7 +33,9 @@ function ProductCard({ product }) {
             <img
               src={productImageSrc(product.image_url)}
               alt={product.name}
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={priority ? 'high' : 'low'}
               className="transition-transform duration-200 motion-safe:group-hover:scale-[1.02]"
               onError={productImageFallback}
             />

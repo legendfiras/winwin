@@ -13,7 +13,7 @@ import { categoryLabel } from '@/lib/categories';
 import { canRedeemProduct, formatPoints, pointsForPurchaseUsd, productPointsCost } from '@/lib/pointsTiers';
 import { openRedeemWhatsApp, redeemProductRequest } from '@/lib/redeemProduct';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
-import { useSettings } from '@/lib/useSettings';
+import { useEarnSettings, useSettings } from '@/lib/useSettings';
 import ProductPointsInfo from '@/components/ProductPointsInfo';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,20 +33,20 @@ export default function Product() {
   const { id } = useParams();
   const { addItem } = useCart();
   const { getSetting } = useSettings();
+  const earn = useEarnSettings();
   const [customer, setCustomer] = useState(getCustomer());
   const hasCard = isCardActive(customer);
   const [qty, setQty] = useState(1);
   const [redeemOpen, setRedeemOpen] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
 
-  const { data: productsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => store.products.list(),
+  const { data: product, isLoading, isError, refetch } = useQuery({
+    queryKey: ['product', id],
+    queryFn: () => store.products.get(id),
+    enabled: Boolean(id),
   });
-  const products = Array.isArray(productsData) ? productsData : [];
-  const product = products.find((p) => String(p.id) === String(id));
   const inStock = product && product.in_stock !== false;
-  const earnPoints = product ? pointsForPurchaseUsd(product.price) : 0;
+  const earnPoints = product ? pointsForPurchaseUsd(product.price, earn) : 0;
   const redeemCost = product ? productPointsCost(product) : 0;
   const canRedeem = product ? canRedeemProduct(product, customer) : false;
 
@@ -139,6 +139,8 @@ export default function Product() {
                     src={productImageSrc(product.image_url)}
                     alt={product.name}
                     className="max-h-full"
+                    fetchPriority="high"
+                    decoding="async"
                     onError={productImageFallback}
                   />
                 ) : (
@@ -159,11 +161,13 @@ export default function Product() {
                 {earnPoints > 0 ? (
                   <p className="text-sm text-muted-foreground">
                     {customer
-                      ? `Earn +${earnPoints} pts when you buy this (orders of $15+).`
-                      : `Earn +${earnPoints} pts on this purchase when you sign in (orders of $15+).`}
+                      ? `Earn +${earnPoints} pts when you buy this (orders of $${earn.minUsd}+).`
+                      : `Earn +${earnPoints} pts on this purchase when you sign in (orders of $${earn.minUsd}+).`}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Point rewards start on purchases of $15 or more.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Point rewards start on purchases of ${earn.minUsd} or more.
+                  </p>
                 )}
 
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">

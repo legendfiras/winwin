@@ -18,6 +18,7 @@ import { PRODUCTS_PER_PAGE, SORT_OPTIONS, categoryLabel } from '@/lib/categories
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
+import { useEarnSettings } from '@/lib/useSettings';
 
 export default function Home() {
   const [params, setParams] = useSearchParams();
@@ -29,6 +30,7 @@ export default function Home() {
   const [search, setSearch] = useState(qParam);
   const [account, setAccount] = useState(getCustomer());
   const debouncedSearch = useDebouncedValue(qParam, 200);
+  const earn = useEarnSettings();
 
   const updateParams = (patch) => {
     const next = new URLSearchParams(params);
@@ -118,7 +120,7 @@ export default function Home() {
               <p className="mt-1 text-muted-foreground">
                 {categoryTitle
                   ? `Showing ${categoryTitle}.`
-                  : 'Discover the latest products and WinWin deals. $1 = 100 points.'}
+                  : `Discover the latest products and WinWin deals. Earn ${earn.pointsPerUsd} ${earn.pointsPerUsd === 1 ? 'point' : 'points'} per $1 spent.`}
                 {total > 0 ? (
                   <span className="ml-2 text-sm tabular-nums">
                     {rangeStart}–{rangeEnd} of {total}
@@ -171,8 +173,8 @@ export default function Home() {
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-4 min-[1440px]:grid-cols-5">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                {products.map((product, index) => (
+                  <ProductCard key={product.id} product={product} priority={index < 4} />
                 ))}
               </div>
               <CatalogPagination

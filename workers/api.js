@@ -10,6 +10,12 @@ import {
   normalizeCategory,
   resolveProductCategory,
 } from '../src/lib/categories.js';
+import {
+  POINTS_EARN_MIN_USD_KEY,
+  POINTS_EARN_PER_USD_KEY,
+  parseEarnSettings,
+  pointsForPurchaseUsd,
+} from '../src/lib/pointsTiers.js';
 
 const MIME = {
   '.jpg': 'image/jpeg',
@@ -27,9 +33,13 @@ const DEFAULT_SETTINGS = [
   ['admin_email', ''],
   ['winwin_card_image', ''],
   ['customer_feedback', ''],
+  [POINTS_EARN_PER_USD_KEY, '1'],
+  [POINTS_EARN_MIN_USD_KEY, '15'],
 ];
 
 let currentRequest = null;
+let catalogChecked = false;
+let customerSchemaChecked = false;
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -133,14 +143,15 @@ function roundMoney(value) {
   return Math.round(n * 100) / 100;
 }
 
-function pointsForPurchaseUsd(amount) {
-  const n = Number(amount);
-  if (!Number.isFinite(n) || n < 15) return 0;
-  if (n <= 20) return 20;
-  if (n <= 40) return 35;
-  if (n <= 60) return 50;
-  if (n <= 100) return 75;
-  return 100;
+async function loadEarnSettings(env) {
+  const { results } = await env.DB.prepare(
+    'SELECT setting_key, setting_value FROM settings WHERE setting_key IN (?, ?)',
+  )
+    .bind(POINTS_EARN_PER_USD_KEY, POINTS_EARN_MIN_USD_KEY)
+    .all();
+  const map = {};
+  for (const row of results || []) map[row.setting_key] = row.setting_value;
+  return parseEarnSettings(map);
 }
 
 function orderDisplayId(id) {
@@ -256,6 +267,7 @@ async function submitCheckout(env, body) {
 
   const id = randomId();
   const summary = lines.map((line) => `${line.qty}× ${line.name}`).join(', ');
+  const earn = await loadEarnSettings(env);
   await env.DB.prepare(
     `INSERT INTO store_transactions (
       id, customer_id, customer_email, customer_name, customer_phone, type, status,
@@ -276,7 +288,7 @@ async function submitCheckout(env, body) {
       JSON.stringify(lines),
       JSON.stringify(ids),
       summary,
-      pointsForPurchaseUsd(subtotal),
+      pointsForPurchaseUsd(subtotal, earn),
       'CUSTOMER',
       String(body.ambassador_code || '').trim(),
       body.member_price_requested ? 1 : 0,
@@ -522,10 +534,21 @@ async function listProductsPaged(env, url) {
   };
 }
 
-async function ensureCatalog(env, request) {
-  await ensureSettings(env);
+async function ensureCatalogOnce(env, request) {
+  if (catalogChecked) return;
+  await ensureCatalog(env, request);
+  catalogChecked = true;
+}
+
+async function ensureCustomerOnce(env) {
+  if (customerSchemaChecked) return;
   await ensureTransactions(env);
   await ensureCustomerSchema(env);
+  customerSchemaChecked = true;
+}
+
+async function ensureCatalog(env, request) {
+  await ensureSettings(env);
   try {
     await ensureProductIndexes(env);
   } catch {
@@ -597,7 +620,10 @@ async function handleApi(request, env) {
     return new Response(null, { headers: corsHeaders(request) });
   }
 
-  await ensureCatalog(env, request);
+  await ensureCatalogOnce(env, request);
+  if (path.startsWith('/api/fn/') || method !== 'GET') {
+    await ensureCustomerOnce(env);
+  }
 
   if (path === '/api/health' && method === 'GET') {
     const products = await env.DB.prepare('SELECT COUNT(*) AS n FROM products').first();
@@ -641,6 +667,13 @@ async function handleApi(request, env) {
   }
 
   const productMatch = path.match(/^\/api\/products\/([^/]+)$/);
+  if (productMatch && method === 'GET') {
+    const id = decodeURIComponent(productMatch[1]);
+    const row = await env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(id).first();
+    if (!row) return json({ error: 'not found' }, 404);
+    return json(productFromRow(row));
+  }
+
   if (productMatch && method === 'PUT') {
     if (!(await requireAdmin(request, env))) return json({ error: 'unauthorized' }, 401);
     const id = decodeURIComponent(productMatch[1]);
@@ -809,16 +842,32 @@ function imageResponse(body, contentType) {
   return new Response(body, { headers });
 }
 
-async function handleImage(request, env) {
+async function handleImage(request, env, ctx) {
+  const cache = caches.default;
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
   const filename = decodeURIComponent(new URL(request.url).pathname.replace(/^\/img\//, ''));
   if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
     return new Response('Not found', { status: 404 });
   }
 
+  const asset = await fetchAsset(env, request, `/img/${filename}`);
+  const type = asset.headers.get('content-type') || '';
+  if (asset.ok && !type.includes('text/html')) {
+    const headers = new Headers(asset.headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    const response = new Response(asset.body, { status: 200, headers });
+    ctx?.waitUntil?.(cache.put(request, response.clone()));
+    return response;
+  }
+
   if (env.IMAGES) {
     const data = await env.IMAGES.get(filename, { type: 'arrayBuffer' });
     if (data && data.byteLength > 0) {
-      return imageResponse(data, mimeFor(filename));
+      const response = imageResponse(data, mimeFor(filename));
+      ctx?.waitUntil?.(cache.put(request, response.clone()));
+      return response;
     }
   }
 
@@ -827,24 +876,18 @@ async function handleImage(request, env) {
       (await env.PRODUCT_IMAGES.get(`products/${filename}`)) ||
       (await env.PRODUCT_IMAGES.get(filename));
     if (object) {
-      const type = object.httpMetadata?.contentType || mimeFor(filename);
-      return imageResponse(object.body, type);
+      const contentType = object.httpMetadata?.contentType || mimeFor(filename);
+      const response = imageResponse(object.body, contentType);
+      ctx?.waitUntil?.(cache.put(request, response.clone()));
+      return response;
     }
-  }
-
-  const asset = await fetchAsset(env, request, `/img/${filename}`);
-  const type = asset.headers.get('content-type') || '';
-  if (asset.ok && !type.includes('text/html')) {
-    const headers = new Headers(asset.headers);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    return new Response(asset.body, { status: 200, headers });
   }
 
   return new Response('Not found', { status: 404 });
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     currentRequest = request;
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
@@ -855,7 +898,7 @@ export default {
       }
     }
     if (url.pathname.startsWith('/img/')) {
-      return handleImage(request, env);
+      return handleImage(request, env, ctx);
     }
     return env.ASSETS.fetch(request);
   },

@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { invokeCustomer, getCustomer } from '@/lib/customerAuth';
 import { pointsForPurchaseUsd, formatPoints } from '@/lib/pointsTiers';
+import { useEarnSettings } from '@/lib/useSettings';
 import { toast } from 'sonner';
 
 export default function SubmitPurchaseDialog({ open, onOpenChange, product, onSubmitted }) {
   const customer = getCustomer();
+  const earn = useEarnSettings();
   const [amount, setAmount] = useState(product?.price ? String(product.price) : '');
   const [note, setNote] = useState(product?.name || '');
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function SubmitPurchaseDialog({ open, onOpenChange, product, onSu
   }, [open, product]);
 
   const usd = Number(amount);
-  const pendingPoints = Number.isFinite(usd) ? pointsForPurchaseUsd(usd) : 0;
+  const pendingPoints = Number.isFinite(usd) ? pointsForPurchaseUsd(usd, earn) : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,7 +86,7 @@ export default function SubmitPurchaseDialog({ open, onOpenChange, product, onSu
           </div>
           <p className="text-sm">
             Pending reward: <strong>{formatPoints(pendingPoints)}</strong>
-            {usd > 0 && usd < 15 ? ' (orders under $15 earn 0 points)' : ''}
+            {usd > 0 && usd < earn.minUsd ? ` (orders under $${earn.minUsd} earn 0 points)` : ''}
           </p>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit for approval'}

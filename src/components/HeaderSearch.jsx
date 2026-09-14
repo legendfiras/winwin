@@ -2,8 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { store } from '@/api/store';
-import { matchesSearch } from '@/lib/categories';
+import { store, asProducts } from '@/api/store';
 import { formatMoney } from '@/lib/pricing';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -23,14 +22,11 @@ export default function HeaderSearch() {
   const [query, setQuery] = React.useState('');
   const debounced = useDebouncedValue(query, 200);
   const { data } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => store.products.list(),
-    enabled: open,
+    queryKey: ['product-search', debounced],
+    queryFn: () => store.products.list({ q: debounced, page: 1, limit: 8 }),
+    enabled: open && debounced.trim().length >= 2,
   });
-  const products = Array.isArray(data) ? data : [];
-  const results = debounced.trim()
-    ? products.filter((product) => matchesSearch(product, debounced)).slice(0, 8)
-    : [];
+  const results = asProducts(data);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -66,7 +62,7 @@ export default function HeaderSearch() {
           ) : null}
         </div>
         <div className="max-h-80 overflow-y-auto p-2">
-          {!debounced.trim() ? (
+          {!debounced.trim() || debounced.trim().length < 2 ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">Start typing to search the shop.</p>
           ) : results.length === 0 ? (
             <p className="px-3 py-8 text-center text-sm text-muted-foreground">No products found for “{debounced}”.</p>

@@ -30,29 +30,30 @@ export default function AdminQRCode() {
   return (
     <AdminLayout>
       <div className="max-w-md mx-auto py-12 flex flex-col items-center gap-6">
-        <h1 className="text-2xl font-bold font-heading">App QR Code</h1>
+        <h1 className="text-center font-heading text-xl font-bold sm:text-2xl">App QR Code</h1>
         <p className="text-muted-foreground text-center text-sm">
           Share this QR code with customers — scanning it will open the app directly.
         </p>
 
-        <div ref={wrapperRef} className="bg-white p-6 rounded-2xl shadow-lg border">
+        <div ref={wrapperRef} className="max-w-full overflow-hidden rounded-2xl border bg-white p-4 shadow-lg sm:p-6">
           <QRCodeCanvas
             value={APP_URL}
-            size={250}
+            size={220}
             bgColor="#ffffff"
             fgColor="#1a1a2e"
             level="H"
+            className="h-auto max-w-full"
           />
         </div>
 
         <p className="text-xs text-muted-foreground break-all text-center px-4">{APP_URL}</p>
 
-        <div className="flex gap-3">
-          <Button onClick={handleDownload} className="gap-2">
-            <Download className="w-4 h-4" /> Download PNG
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <Button onClick={handleDownload} className="h-11 w-full gap-2 sm:w-auto">
+            <Download className="h-4 w-4" /> Download PNG
           </Button>
-          <Button variant="outline" onClick={handleCopyLink} className="gap-2">
-            <Share2 className="w-4 h-4" /> Copy Link
+          <Button variant="outline" onClick={handleCopyLink} className="h-11 w-full gap-2 sm:w-auto">
+            <Share2 className="h-4 w-4" /> Copy Link
           </Button>
         </div>
       </div>

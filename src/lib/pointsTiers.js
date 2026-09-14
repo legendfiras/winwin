@@ -1,11 +1,27 @@
-export function pointsForPurchaseUsd(amount) {
+export const POINTS_EARN_PER_USD_KEY = 'points_earn_per_usd';
+export const POINTS_EARN_MIN_USD_KEY = 'points_earn_min_usd';
+export const DEFAULT_POINTS_EARN_PER_USD = 1;
+export const DEFAULT_POINTS_EARN_MIN_USD = 15;
+
+export function parseEarnSettings(map = {}) {
+  const rateRaw = map[POINTS_EARN_PER_USD_KEY];
+  const minRaw = map[POINTS_EARN_MIN_USD_KEY];
+  const rate = Number(rateRaw);
+  const min = Number(minRaw);
+  return {
+    pointsPerUsd: Number.isFinite(rate) && rate >= 0 ? rate : DEFAULT_POINTS_EARN_PER_USD,
+    minUsd: Number.isFinite(min) && min >= 0 ? min : DEFAULT_POINTS_EARN_MIN_USD,
+  };
+}
+
+export function pointsForPurchaseUsd(amount, earnSettings) {
   const n = Number(amount);
-  if (!Number.isFinite(n) || n < 15) return 0;
-  if (n <= 20) return 20;
-  if (n <= 40) return 35;
-  if (n <= 60) return 50;
-  if (n <= 100) return 75;
-  return 100;
+  const minUsd = Number(earnSettings?.minUsd);
+  const min = Number.isFinite(minUsd) && minUsd >= 0 ? minUsd : DEFAULT_POINTS_EARN_MIN_USD;
+  if (!Number.isFinite(n) || n < min) return 0;
+  const rate = Number(earnSettings?.pointsPerUsd);
+  const perUsd = Number.isFinite(rate) && rate >= 0 ? rate : DEFAULT_POINTS_EARN_PER_USD;
+  return Math.max(0, Math.round(n * perUsd));
 }
 
 export function pointsPriceFromUsd(price) {

@@ -88,9 +88,16 @@ function productsQuery(opts = {}) {
   return qs ? `/api/products?${qs}` : '/api/products';
 }
 
+export function asProducts(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
+}
+
 export const store = {
   products: {
     list: (opts) => request(productsQuery(opts)),
+    get: (id) => request(`/api/products/${encodeURIComponent(id)}`),
     create: (data) => request('/api/products', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id) => request(`/api/products/${id}`, { method: 'DELETE' }),

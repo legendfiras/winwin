@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { store } from '@/api/store';
+import { store, asProducts } from '@/api/store';
 import { getCustomer, setCustomer as saveCustomer, clearCustomer, invokeCustomer, isCardActive } from '@/lib/customerAuth';
 import { activationPath } from '@/lib/accountGuards';
 import { canRedeemProduct, productPointsCost } from '@/lib/pointsTiers';
@@ -109,7 +109,7 @@ export default function MyAccount() {
   });
 
   const openRedeem = async () => {
-    const products = await store.products.list();
+    const products = asProducts(await store.products.list());
     const eligible = products.filter((p) => canRedeemProduct(p, customer));
     setRedeemableProducts(eligible);
     setRedeemOpen(true);

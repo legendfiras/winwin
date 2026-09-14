@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,11 @@ import { PlusCircle, MinusCircle, Pencil, Trash2, Search, History, ClipboardList
 import { toast } from 'sonner';
 import { invokeAdmin } from '@/lib/customerAuth';
 import { pointsForPurchaseUsd } from '@/lib/pointsTiers';
+import { useEarnSettings } from '@/lib/useSettings';
 
 export default function AdminCustomers() {
   const qc = useQueryClient();
+  const earn = useEarnSettings();
   const [search, setSearch] = useState('');
   const [addPointsCustomer, setAddPointsCustomer] = useState(null);
   const [pointsToAdd, setPointsToAdd] = useState('');
@@ -224,7 +226,7 @@ export default function AdminCustomers() {
 
   return (
     <AdminLayout>
-      <h1 className="font-heading font-bold text-2xl mb-6">Customers</h1>
+      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">Customers</h1>
 
       {/* Search */}
       <div className="relative mb-4">
@@ -531,7 +533,7 @@ export default function AdminCustomers() {
               <Input value={createTxNote} onChange={e => setCreateTxNote(e.target.value)} />
             </div>
             <p className="text-sm text-muted-foreground">
-              Points after approval: {createTxType === 'LOYALTY_CARD' ? 100 : pointsForPurchaseUsd(Number(createTxAmount))}
+              Points after approval: {createTxType === 'LOYALTY_CARD' ? 100 : pointsForPurchaseUsd(Number(createTxAmount), earn)}
             </p>
             <Button className="w-full" onClick={async () => {
               const data = await invokeAdmin('adminCreateTransaction', {
@@ -549,7 +551,54 @@ export default function AdminCustomers() {
           </div>
         </DialogContent>
       </Dialog>
-      <Card>
+      <div className="space-y-3 md:hidden">
+        {filtered.map((c) => (
+          <Card key={c.id}>
+            <CardContent className="space-y-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-heading font-semibold">{c.full_name}</p>
+                  <p className="truncate text-sm text-muted-foreground">{c.mobile || c.email || '—'}</p>
+                </div>
+                <Badge variant="secondary">{c.points || 0} pts</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <p><span className="text-muted-foreground">Card</span></p>
+                <div className="flex justify-end">
+                  <Switch checked={c.has_winwin_card || false} onCheckedChange={(v) => toggleCard(c, v)} />
+                </div>
+                <p className="text-muted-foreground">Expiry</p>
+                <p className="text-right">{c.card_expiry_date ? new Date(c.card_expiry_date).toLocaleDateString() : '—'}</p>
+                <p className="text-muted-foreground">Ambassador</p>
+                <div className="flex justify-end">
+                  <Switch checked={c.is_ambassador || false} onCheckedChange={(v) => toggleAmbassador(c, v)} />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" className="h-10" onClick={() => { setAddPointsCustomer(c); setPointsMode('add'); setPointsToAdd(''); }}>
+                  <PlusCircle className="mr-1 h-4 w-4" /> Points
+                </Button>
+                <Button size="sm" variant="outline" className="h-10" onClick={() => { setEditMobileCustomer(c); setNewMobile(c.mobile || ''); }}>
+                  <Pencil className="mr-1 h-4 w-4" /> Mobile
+                </Button>
+                <Button size="sm" variant="outline" className="h-10" onClick={() => setHistoryCustomer(c)}>
+                  <History className="mr-1 h-4 w-4" /> History
+                </Button>
+                <Button size="sm" variant="outline" className="h-10 text-destructive" onClick={() => setDeleteCustomer(c)}>
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {filtered.length === 0 && !isLoading && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {search.trim() ? 'No customers match your search.' : 'No customers yet'}
+          </p>
+        )}
+      </div>
+
+      <Card className="hidden md:block">
         <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>

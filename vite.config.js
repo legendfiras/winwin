@@ -26,12 +26,27 @@ function serveLocalStore() {
     { setting_key: 'admin_password', setting_value: '1234', id: 'local-admin' },
     { setting_key: 'customer_feedback', setting_value: '', id: 'local-fb' },
     { setting_key: 'winwin_card_image', setting_value: '', id: 'local-card' },
+    { setting_key: 'points_earn_per_usd', setting_value: '1', id: 'local-earn-rate' },
+    { setting_key: 'points_earn_min_usd', setting_value: '15', id: 'local-earn-min' },
   ]
   return {
     name: 'local-cloudflare-store',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = (req.url || '').split('?')[0]
+        if (req.method === 'GET' && url.startsWith('/api/products/')) {
+          const id = decodeURIComponent(url.slice('/api/products/'.length))
+          const products = jsonFile(path.join('public', 'data', 'products.json')) || []
+          const product = products.find((p) => String(p.id) === String(id))
+          res.setHeader('Content-Type', 'application/json')
+          if (!product) {
+            res.statusCode = 404
+            res.end(JSON.stringify({ error: 'not found' }))
+            return
+          }
+          res.end(JSON.stringify(product))
+          return
+        }
         if (req.method === 'GET' && url === '/api/products') {
           const products = jsonFile(path.join('public', 'data', 'products.json')) || []
           const parsed = new URL(req.url, 'http://localhost')
@@ -54,6 +69,30 @@ function serveLocalStore() {
         if (req.method === 'GET' && url === '/api/settings') {
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify(defaults))
+          return
+        }
+        if (req.method === 'POST' && url === '/api/settings') {
+          let body = ''
+          req.on('data', (chunk) => { body += chunk })
+          req.on('end', () => {
+            let parsed = {}
+            try { parsed = JSON.parse(body || '{}') } catch { parsed = {} }
+            const key = String(parsed.setting_key || '')
+            const value = String(parsed.setting_value ?? '')
+            res.setHeader('Content-Type', 'application/json')
+            if (!key) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'setting_key required' }))
+              return
+            }
+            let row = defaults.find((s) => s.setting_key === key)
+            if (row) row.setting_value = value
+            else {
+              row = { setting_key: key, setting_value: value, id: `local-${key}` }
+              defaults.push(row)
+            }
+            res.end(JSON.stringify(row))
+          })
           return
         }
         if (req.method === 'GET' && url === '/api/slides') {

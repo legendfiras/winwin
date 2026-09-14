@@ -30,7 +30,7 @@ export default function AdminWinWinCard() {
 
   return (
     <AdminLayout>
-      <h1 className="font-heading font-bold text-2xl mb-6">WinWin Card Image</h1>
+      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">WinWin Card Image</h1>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-heading">

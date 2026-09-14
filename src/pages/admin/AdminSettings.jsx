@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Settings, Phone, Lock, Palette, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import PointsEarnSettings from '@/components/admin/PointsEarnSettings';
 
 export default function AdminSettings() {
   const qc = useQueryClient();
@@ -49,7 +50,10 @@ export default function AdminSettings() {
 
   return (
     <AdminLayout>
-      <h1 className="font-heading font-bold text-2xl mb-6">Settings</h1>
+      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">Settings</h1>
+      <div className="mb-4 sm:mb-6">
+        <PointsEarnSettings />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-heading">
@@ -85,7 +89,7 @@ export default function AdminSettings() {
                 <Input value={bgColor} onChange={e => setBgColor(e.target.value)} className="flex-1" />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={saving}>
+            <Button type="submit" className="h-11 w-full" disabled={saving}>
               {saving ? 'Saving...' : 'Save Settings'}
             </Button>
           </form>
