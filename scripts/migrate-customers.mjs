@@ -6,6 +6,7 @@ import {
   emptyMigrationReport,
   tallyEmailStatus,
   formatMigrationReport,
+  stripLegacySecrets,
 } from '../workers/migration.js';
 
 function arg(name, fallback = '') {
@@ -73,13 +74,16 @@ async function main() {
   const file = arg('file', 'scripts/legacy-customers.sample.json');
   const dry = hasFlag('dry-run') || !hasFlag('apply');
   const origin = arg('origin', 'http://127.0.0.1:8787').replace(/\/$/, '');
-  const token = arg('token');
+  let token = arg('token');
   const abs = resolve(file);
   const raw = await readFile(abs, 'utf8');
-  const records = abs.endsWith('.csv') ? parseCsv(raw) : JSON.parse(raw);
-  if (!Array.isArray(records)) {
+  const parsed = abs.endsWith('.csv') ? parseCsv(raw) : JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
     throw new Error('Legacy file must be a JSON array or CSV');
   }
+  const records = parsed
+    .map(stripLegacySecrets)
+    .filter((row) => String(row.is_sample || '').toUpperCase() !== 'TRUE');
 
   const local = classifyRecords(records);
   console.log(formatMigrationReport({
@@ -91,7 +95,20 @@ async function main() {
   if (dry) return;
 
   if (!token) {
-    throw new Error('Pass --token with an admin session token from /admin-login');
+    const adminPassword = process.env.WINWIN_ADMIN_PASSWORD || '';
+    if (!adminPassword) {
+      throw new Error('Pass --token or set WINWIN_ADMIN_PASSWORD');
+    }
+    const loginRes = await fetch(`${origin}/api/fn/adminLogin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+    const login = await loginRes.json();
+    token = login.admin_session_token || '';
+    if (!token) {
+      throw new Error(login.error || 'Admin login failed');
+    }
   }
 
   const res = await fetch(`${origin}/api/fn/importLegacyCustomers`, {

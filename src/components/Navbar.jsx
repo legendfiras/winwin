@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, LogOut, Shield, User } from 'lucide-react';
 import { getCustomer, clearCustomer, isAdmin, clearAdmin, invokeCustomer, invokePublic, getAdminSessionToken } from '@/lib/customerAuth';
 import { formatPoints } from '@/lib/pointsTiers';
-import { PRIMARY_CATEGORIES, MORE_CATEGORIES } from '@/lib/categories';
+import { NAV_CATEGORY_GROUPS } from '@/lib/categories';
 import { Button } from '@/components/ui/button';
 import CartButton from '@/components/CartButton';
 import HeaderSearch from '@/components/HeaderSearch';
@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -66,16 +67,18 @@ export default function Navbar() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="z-[60] w-56">
-              {PRIMARY_CATEGORIES.map((item) => (
-                <DropdownMenuItem key={item.key} asChild>
-                  <Link to={`/?cat=${item.key}`}>{item.label}</Link>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              {MORE_CATEGORIES.filter((item) => ['new_gadgets', 'must_have'].includes(item.key)).map((item) => (
-                <DropdownMenuItem key={item.key} asChild>
-                  <Link to={`/?cat=${item.key}`}>{item.label}</Link>
-                </DropdownMenuItem>
+              {NAV_CATEGORY_GROUPS.map((group, index) => (
+                <React.Fragment key={group.key}>
+                  {index > 0 ? <DropdownMenuSeparator /> : null}
+                  <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {group.label}
+                  </DropdownMenuLabel>
+                  {group.items.map((item) => (
+                    <DropdownMenuItem key={item.key} asChild>
+                      <Link to={`/?cat=${item.key}`}>{item.label}</Link>
+                    </DropdownMenuItem>
+                  ))}
+                </React.Fragment>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>

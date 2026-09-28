@@ -13,6 +13,9 @@ import {
   mapLegacyRecord,
   emptyMigrationReport,
   tallyEmailStatus,
+  isUsablePhone,
+  looksPlaceholderAmbassador,
+  stripLegacySecrets,
 } from './migration.js';
 
 const SIGNUP_POINTS = 10;
@@ -396,20 +399,86 @@ async function recordImportedBalance(env, customerId, points) {
     .run();
 }
 
-async function sendEmail(env, { to, subject, text }) {
+async function sendEmail(env, { to, subject, text, html }) {
+  if (!to) return { sent: false, provider: '' };
+  const fromRaw = env.MAIL_FROM || 'WinWin <onboarding@resend.dev>';
+  const sender = parseMailFrom(fromRaw);
+  const brevoKey = env.BREVO_API_KEY;
+  if (brevoKey) {
+    try {
+      const payload = {
+        sender,
+        to: [{ email: to }],
+        subject,
+        textContent: text,
+      };
+      if (html) payload.htmlContent = html;
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return { sent: true, provider: 'brevo' };
+    } catch {
+      /* fall through to Resend */
+    }
+  }
   const apiKey = env.RESEND_API_KEY;
-  if (!apiKey || !to) return { sent: false };
-  const from = env.MAIL_FROM || 'WinWin <onboarding@resend.dev>';
+  if (!apiKey) return { sent: false, provider: '' };
   try {
+    const body = { from: fromRaw, to: [to], subject, text };
+    if (html) body.html = html;
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text }),
+      body: JSON.stringify(body),
     });
-    return { sent: res.ok };
+    return { sent: res.ok, provider: 'resend' };
   } catch {
-    return { sent: false };
+    return { sent: false, provider: 'resend' };
   }
+}
+
+function parseMailFrom(from) {
+  const raw = String(from || '').trim();
+  const match = raw.match(/^(.*)<([^>]+)>\s*$/);
+  if (match) {
+    return {
+      name: match[1].trim().replace(/^["']|["']$/g, '') || 'WinWin',
+      email: match[2].trim(),
+    };
+  }
+  return { name: 'WinWin', email: raw || 'onboarding@resend.dev' };
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function welcomeBackCopy(customer) {
+  const name = customer.first_name || customer.full_name || 'there';
+  const subject = 'Welcome to WinWin';
+  const text = `Hi ${name},
+
+Your WinWin account is ready.
+
+If you did not set this password, contact WinWin right away.
+
+See you in the shop,
+The WinWin team`;
+  const html = `<p>Hi ${escapeHtml(name)},</p>
+<p>Your WinWin account is ready.</p>
+<p>If you did not set this password, contact WinWin right away.</p>
+<p>See you in the shop,<br>The WinWin team</p>`;
+  return { subject, text, html };
 }
 
 async function issueResetToken(env, customer, origin) {
@@ -436,8 +505,8 @@ async function issueResetToken(env, customer, origin) {
   if (customer.email && isValidEmail(customer.email) && link) {
     await sendEmail(env, {
       to: customer.email,
-      subject: 'Set up your WinWin password',
-      text: `Hi ${customer.full_name || ''},\n\nSet your WinWin password using this link. It expires in 1 hour and can be used once:\n${link}\n\nIf you did not request this, ignore this email.\n\n– WinWin`,
+      subject: 'Reset your WinWin password',
+      text: `Hi ${customer.full_name || ''},\n\nReset your password using this link. It expires in 1 hour and can be used once:\n${link}\n\nIf you did not request this, ignore this email.\n\n– WinWin`,
     });
   }
   return { raw, link };
@@ -489,7 +558,7 @@ async function verifyEmail(env, body) {
     .bind(auth.id)
     .run();
   await env.DB.prepare(
-    `UPDATE customers SET email_status = ?, updated_date = ? WHERE id = ? AND account_source = 'new'`,
+    `UPDATE customers SET email_status = ?, updated_date = ? WHERE id = ?`,
   )
     .bind(EMAIL_STATUS.VERIFIED, nowIso(), auth.customer_id)
     .run();
@@ -517,7 +586,7 @@ async function loginCustomer(env, body, request) {
 
   if (customer.account_source === ACCOUNT_SOURCE.MIGRATED && customer.password_setup_required) {
     return json({
-      error: 'Your account has been migrated. Set up a new password to continue.',
+      error: 'Please reset your password to continue.',
       code: 'MIGRATED_SETUP_REQUIRED',
     }, 403);
   }
@@ -717,11 +786,24 @@ async function reviewProfile(env, body) {
   if (!authz) return json({ error: 'unauthorized' }, 401);
   const names = splitName(body.full_name, body.first_name, body.last_name);
   const mobile = String(body.mobile || '').trim();
-  if (!names.full_name) return json({ error: 'Name is required' }, 400);
-  if (!mobile) return json({ error: 'Phone number is required' }, 400);
+  const country = String(body.country || '').trim();
+  if (!names.first_name || !names.last_name) return json({ error: 'First and last name are required' }, 400);
+  if (!country) return json({ error: 'Country is required' }, 400);
+  if (!isUsablePhone(mobile)) {
+    return json({ error: 'Enter a full phone number (at least 8 digits, e.g. 03XXXXXX or 9613XXXXXX)' }, 400);
+  }
+  if (body.email != null && !isValidEmail(body.email)) {
+    return json({ error: 'Enter a valid email address' }, 400);
+  }
+  let ambassador_code = authz.customer.ambassador_code || '';
+  if (body.ambassador_code != null) {
+    const nextCode = String(body.ambassador_code).trim();
+    ambassador_code = looksPlaceholderAmbassador(nextCode) ? '' : nextCode;
+  }
   let email = authz.customer.email;
   let emailNorm = authz.customer.email_normalized;
   let emailStatus = authz.customer.email_status;
+  let emailChanged = false;
   if (body.email != null && normalizeEmail(body.email) !== normalizeEmail(authz.customer.email)) {
     const next = normalizeEmail(body.email);
     if (!isValidEmail(next)) return json({ error: 'Enter a valid email address' }, 400);
@@ -732,10 +814,11 @@ async function reviewProfile(env, body) {
     email = next;
     emailNorm = next;
     emailStatus = EMAIL_STATUS.UNVERIFIED;
+    emailChanged = true;
   }
   await env.DB.prepare(
     `UPDATE customers SET full_name = ?, first_name = ?, last_name = ?, mobile = ?, mobile_normalized = ?,
-      country = ?, email = ?, email_normalized = ?, email_status = ?, profile_review_required = 0, updated_date = ? WHERE id = ?`,
+      country = ?, ambassador_code = ?, email = ?, email_normalized = ?, email_status = ?, profile_review_required = 0, updated_date = ? WHERE id = ?`,
   )
     .bind(
       names.full_name,
@@ -743,7 +826,8 @@ async function reviewProfile(env, body) {
       names.last_name,
       mobile,
       normalizePhone(mobile),
-      String(body.country || authz.customer.country || '').trim(),
+      country,
+      ambassador_code,
       email,
       emailNorm,
       emailStatus,
@@ -752,7 +836,10 @@ async function reviewProfile(env, body) {
     )
     .run();
   const fresh = await getCustomer(env, authz.customer.id);
-  return json({ success: true, customer: publicCustomer(fresh) });
+  if (emailChanged) {
+    await issueVerifyToken(env, fresh, body.app_origin);
+  }
+  return json({ success: true, customer: publicCustomer(fresh), email_changed: emailChanged });
 }
 
 async function listAddresses(env, body) {
@@ -933,7 +1020,7 @@ async function submitRecovery(env, body, request) {
     return json({
       success: true,
       auto_approved: true,
-      message: 'We found your account. Check the new email for password setup instructions.',
+      message: 'We found your account. Check your email for a reset link.',
     });
   }
 
@@ -1081,7 +1168,9 @@ async function adminUpdateCustomer(env, body) {
 }
 
 async function importLegacyCustomers(env, body) {
-  const records = Array.isArray(body.customers) ? body.customers : [];
+  const records = (Array.isArray(body.customers) ? body.customers : [])
+    .map(stripLegacySecrets)
+    .filter((row) => String(row.is_sample || '').toUpperCase() !== 'TRUE');
   const report = emptyMigrationReport();
   report.total = records.length;
   const emailCounts = countEmails(records, (row) => row.email || row.email_address || row.Email);
@@ -1102,13 +1191,14 @@ async function importLegacyCustomers(env, body) {
       }
       const id = randomId();
       const loginEmail = mapped.email_status === EMAIL_STATUS.VALID ? mapped.email : '';
+      const created = mapped.created_date || nowIso();
       await env.DB.prepare(
         `INSERT INTO customers (
           id, legacy_user_id, full_name, first_name, last_name, email, email_normalized, mobile, mobile_normalized,
           country, points, has_winwin_card, card_number, card_purchase_date, card_expiry_date, draw_entries,
           last_signin_date, ambassador_code, is_ambassador, signup_bonus_granted, wallet_balance, account_source,
           migration_status, password_setup_required, profile_review_required, email_status, created_date, updated_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', ?, 0, 1, 0, 'migrated', ?, 1, 1, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, 1, ?, 'migrated', ?, 1, 1, ?, ?, ?)`,
       )
         .bind(
           id,
@@ -1126,12 +1216,21 @@ async function importLegacyCustomers(env, body) {
           mapped.card_number,
           mapped.card_purchase_date,
           mapped.card_expiry_date,
+          mapped.draw_entries || 0,
           mapped.ambassador_code,
+          mapped.is_ambassador ? 1 : 0,
+          mapped.wallet_balance || 0,
           mapped.migration_status,
           mapped.email_status,
-          mapped.created_date || nowIso(),
+          created,
           nowIso(),
         )
+        .run();
+      await env.DB.prepare(
+        `INSERT INTO customer_auth (id, customer_id, password_hash, reset_token_hash, reset_expires_at, must_reset_password, created_date)
+         VALUES (?, ?, '', '', '', 1, ?)`,
+      )
+        .bind(randomId(), id, created)
         .run();
       await recordImportedBalance(env, id, mapped.points);
       if (mapped.has_winwin_card || mapped.card_expiry_date) {

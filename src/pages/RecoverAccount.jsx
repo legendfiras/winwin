@@ -51,10 +51,10 @@ export default function RecoverAccount() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
-              <LifeBuoy className="w-5 h-5 text-primary" /> Recover Migrated Account
+              <LifeBuoy className="w-5 h-5 text-primary" /> Recover account
             </CardTitle>
             <CardDescription>
-              Use your old customer ID, loyalty card number, or phone. Name alone is not enough.
+              Use your customer ID, loyalty card number, or phone. Name alone is not enough.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -62,7 +62,7 @@ export default function RecoverAccount() {
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
                   {result.message || (result.auto_approved
-                    ? 'We found your account. Check the new email for password setup instructions.'
+                    ? 'We found your account. Check your email for a reset link.'
                     : 'Your recovery request was submitted. An admin will review it.')}
                 </p>
                 <Link to="/auth" className="text-primary hover:underline text-sm">Back to sign in</Link>

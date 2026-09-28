@@ -48,5 +48,6 @@ assert.equal(mapped.signup_bonus_granted, true);
 assert.equal(mapped.password_setup_required, true);
 assert.ok(!('password' in mapped));
 assert.ok(!('password_hash' in mapped));
+assert.equal(mapped.profile_review_required, true);
 
 console.log('migration classifier tests passed');

@@ -45,6 +45,35 @@ export function normalizePhone(value) {
   return digits.replace(/^00/, '');
 }
 
+export function isUsablePhone(value) {
+  return normalizePhone(value).length >= 8;
+}
+
+export function looksPlaceholderAmbassador(code) {
+  const c = String(code || '').trim().toLowerCase();
+  if (!c) return false;
+  return c === 'base44.app' || c === 'base44' || c === '2011' || c === '1234' || c === 'admin' || /^[0-9]{1,4}$/.test(c);
+}
+
+export function normalizeLegacyCountry(raw) {
+  const n = String(raw || '')
+    .normalize('NFKC')
+    .replace(/[\u200e\u200f]/g, '')
+    .trim();
+  if (!n) return '';
+  const lower = n.toLowerCase();
+  if (lower === 'lebanon' || n === 'لبنان' || lower === 'lebenon') return 'Lebanon';
+  if (lower.startsWith('lebanon')) return 'Lebanon';
+  if (
+    /beirut|بيروت|aramoun|bshemoun|bshmon|بشامون|saida|nabatiyeh|nabtiyeh|tebnine|baissour|zayni|بقاع|غزه|غزة/i.test(n)
+  ) {
+    return 'Lebanon';
+  }
+  if (/zimbabwe/i.test(n)) return 'Zimbabwe';
+  if (/otstrad|amer\s*hssein/i.test(n)) return '';
+  return n;
+}
+
 export function isValidEmail(value) {
   const email = normalizeEmail(value);
   if (!email) return false;
@@ -96,6 +125,16 @@ export function countEmails(records, getEmail) {
   return counts;
 }
 
+export function stripLegacySecrets(record) {
+  if (!record || typeof record !== 'object') return {};
+  const copy = { ...record };
+  delete copy.password;
+  delete copy.Password;
+  delete copy.password_hash;
+  delete copy.passwordHash;
+  return copy;
+}
+
 export function pickLegacyField(record, keys) {
   for (const key of keys) {
     if (record[key] != null && String(record[key]).trim() !== '') return record[key];
@@ -120,19 +159,26 @@ export function mapLegacyRecord(record, emailCounts) {
   const cardExpiry = String(pickLegacyField(record, ['card_expiry_date', 'cardExpiryDate', 'expiry_date']) || '').trim();
   const hasCardRaw = pickLegacyField(record, ['has_winwin_card', 'hasWinWinCard', 'card_active']);
   const hasCard = hasCardRaw === true || hasCardRaw === 1 || String(hasCardRaw).toLowerCase() === 'true' || String(hasCardRaw) === '1';
+  const ambassadorRaw = String(pickLegacyField(record, ['ambassador_code']) || '').trim();
 
   return {
     legacy_user_id: legacyId,
     ...names,
     email: classified.email,
     mobile: String(pickLegacyField(record, ['mobile', 'phone', 'phone_number', 'tel']) || '').trim(),
-    country: String(pickLegacyField(record, ['country']) || '').trim(),
+    country: normalizeLegacyCountry(pickLegacyField(record, ['country'])),
     points,
     has_winwin_card: hasCard,
     card_number: String(pickLegacyField(record, ['card_number', 'loyalty_card', 'cardNumber']) || '').trim(),
     card_purchase_date: String(pickLegacyField(record, ['card_purchase_date', 'cardPurchaseDate']) || '').trim(),
     card_expiry_date: cardExpiry,
-    ambassador_code: String(pickLegacyField(record, ['ambassador_code']) || '').trim(),
+    ambassador_code: looksPlaceholderAmbassador(ambassadorRaw) ? '' : ambassadorRaw,
+    is_ambassador: (() => {
+      const raw = pickLegacyField(record, ['is_ambassador']);
+      return raw === true || raw === 1 || String(raw).toLowerCase() === 'true' || String(raw) === '1';
+    })(),
+    wallet_balance: Math.max(0, Number(pickLegacyField(record, ['wallet_balance'])) || 0),
+    draw_entries: Math.max(0, Math.round(Number(pickLegacyField(record, ['draw_entries'])) || 0)),
     created_date: String(pickLegacyField(record, ['created_date', 'createdAt', 'created_at']) || '').trim(),
     account_source: ACCOUNT_SOURCE.MIGRATED,
     migration_status: classified.migration_status,

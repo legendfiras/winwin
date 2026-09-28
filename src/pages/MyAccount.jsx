@@ -162,7 +162,7 @@ export default function MyAccount() {
           {customer.must_reset_password && (
             <Card className="border-amber-400 bg-amber-50/50">
               <CardContent className="pt-6 text-sm">
-                Please <Link to="/forgot-password" className="text-primary underline">set a new password</Link>. Your previous password was migrated from the old system.
+                Please <Link to="/forgot-password" className="text-primary underline">reset your password</Link>.
               </CardContent>
             </Card>
           )}

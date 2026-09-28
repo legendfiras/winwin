@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { invokePublic, setCustomer, setSessionToken } from '@/lib/customerAuth';
 import { activationPath } from '@/lib/accountGuards';
 import Navbar from '@/components/Navbar';
@@ -35,10 +35,12 @@ export default function Auth() {
 }
 
 function SignInForm() {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [migratedEmail, setMigratedEmail] = useState('');
+  const [migratedEmail, setMigratedEmail] = useState(searchParams.get('preview') === 'migrated' ? 'preview@winwinleb.com' : '');
+  const previewMigrated = searchParams.get('preview') === 'migrated';
   const [setupSent, setSetupSent] = useState(false);
   const [setupLoading, setSetupLoading] = useState(false);
 
@@ -72,6 +74,10 @@ function SignInForm() {
   };
 
   const sendSetup = async () => {
+    if (previewMigrated) {
+      setSetupSent(true);
+      return;
+    }
     setSetupLoading(true);
     try {
       await invokePublic('requestPasswordReset', {
@@ -91,25 +97,24 @@ function SignInForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-heading">
-            <KeyRound className="w-5 h-5 text-primary" /> Your account has been migrated
+            <KeyRound className="w-5 h-5 text-primary" /> Reset password
           </CardTitle>
           <CardDescription>
-            Set up a new password to continue. We did not copy passwords from the old platform.
+            Enter your email and we will send a link to set a new password.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {setupSent ? (
             <p className="text-sm text-muted-foreground">
-              If this email is on a migrated account, you will receive password setup instructions shortly.
-              The link expires in 1 hour and can be used once.
+              Check your email for the reset link. It expires in 1 hour and can be used once.
             </p>
           ) : (
             <Button type="button" className="w-full" onClick={sendSetup} disabled={setupLoading}>
-              {setupLoading ? 'Sending...' : 'Set Up My Password'}
+              {setupLoading ? 'Sending...' : 'Reset password'}
             </Button>
           )}
           <p className="text-sm text-center">
-            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your old email?</Link>
+            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your email?</Link>
           </p>
           <Button type="button" variant="ghost" className="w-full" onClick={() => setMigratedEmail('')}>
             Back to sign in
@@ -144,8 +149,7 @@ function SignInForm() {
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
-            Migrated from the old app?{' '}
-            <Link to="/recover-account" className="text-primary hover:underline">Recover migrated account</Link>
+            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your email?</Link>
           </p>
         </form>
       </CardContent>

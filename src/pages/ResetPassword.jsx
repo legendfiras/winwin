@@ -12,6 +12,7 @@ import { toast } from "sonner";
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get("token");
+  const isPreview = resetToken === "preview";
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,6 +21,10 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (isPreview) {
+      setError("This is a preview. Submitting does not change any account.");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -40,8 +45,8 @@ export default function ResetPassword() {
       }
       setSessionToken(data.session_token);
       setCustomer(data.customer);
-      toast.success("Password updated. You're signed in.");
-      window.location.href = data.customer?.profile_review_required ? '/review-profile' : '/';
+      toast.success('Password updated');
+      window.location.href = data.customer?.profile_review_required ? '/review-profile' : '/my-account';
     } catch (err) {
       setError(err.message || "Failed to reset password");
     } finally {
@@ -72,9 +77,9 @@ export default function ResetPassword() {
             <>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-heading">
-                  <Lock className="w-5 h-5 text-primary" /> New password
+                  <Lock className="w-5 h-5 text-primary" /> Reset password
                 </CardTitle>
-                <CardDescription>Enter your new password below</CardDescription>
+                <CardDescription>Enter a new password, then confirm it.</CardDescription>
               </CardHeader>
               <CardContent>
                 {error && (
@@ -91,6 +96,7 @@ export default function ResetPassword() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
+                      minLength={8}
                     />
                   </div>
                   <div>
@@ -101,10 +107,11 @@ export default function ResetPassword() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      minLength={8}
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Resetting..." : "Reset password"}
+                    {loading ? "Saving..." : "Reset password"}
                   </Button>
                 </form>
               </CardContent>

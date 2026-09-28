@@ -25,8 +25,12 @@ id = "2224090d2ada49b290b846af15271c92"
 # Custom domain winwinleb.com is currently on Cloudflare Pages (static SPA).
 # Do not add [[routes]] custom_domain here while Pages owns that hostname.
 # The frontend on winwinleb.com calls this Worker API at workers.dev.
-# Optional customer email (password setup + verification):
+# Optional customer email (password setup, verification, congratulations):
+# Prefer Brevo once you have a key (wrangler secret put BREVO_API_KEY).
+# Resend is used until BREVO_API_KEY is set.
+# wrangler secret put BREVO_API_KEY
 # wrangler secret put RESEND_API_KEY
 # wrangler secret put MAIL_FROM
+# MAIL_FROM example: WinWin <hello@winwinleb.com>
 # [vars]
 # APP_ORIGIN = "https://winwinleb.com"

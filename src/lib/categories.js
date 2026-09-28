@@ -14,16 +14,16 @@ export const CATEGORY_LABELS = {
 };
 
 export const CANONICAL_CATEGORIES = [
+  'must_have',
+  'new_gadgets',
   'home_appliance',
   'home_essentials',
-  'phone_accessories',
-  'toys',
-  'new_gadgets',
-  'must_have',
-  'beauty_care',
   'fans',
-  'shavers',
+  'phone_accessories',
+  'beauty_care',
   'hair_care',
+  'shavers',
+  'toys',
 ];
 
 const CANONICAL_SET = new Set(CANONICAL_CATEGORIES);
@@ -68,31 +68,68 @@ export const PRODUCT_CATEGORY_OVERRIDES = {
   '6a5a76d47374dd84909cd013': 'home_essentials', // spice rack imported as phone_accessories
 };
 
-export const PRIMARY_CATEGORIES = [
-  { key: 'home', label: 'Home & Kitchen', keys: ['home_appliance', 'home_essentials', 'fans'] },
-  { key: 'electronics', label: 'Electronics', keys: ['phone_accessories'] },
-  { key: 'beauty', label: 'Beauty & Personal Care', keys: ['beauty_care', 'shavers', 'hair_care', 'silkapils'] },
-  { key: 'toys', label: 'Kids & Toys', keys: ['toys'] },
+/** Unique shop chips, merchandising order. No overlapping group + child labels. */
+export const SHOP_CATEGORIES = CANONICAL_CATEGORIES.map((key) => ({
+  key,
+  label: CATEGORY_LABELS[key],
+  keys: [key],
+}));
+
+/** Navbar groups. Each product category appears once; group titles are labels only. */
+export const NAV_CATEGORY_GROUPS = [
+  {
+    key: 'featured',
+    label: 'Featured',
+    items: [
+      { key: 'must_have', label: CATEGORY_LABELS.must_have },
+      { key: 'new_gadgets', label: CATEGORY_LABELS.new_gadgets },
+    ],
+  },
+  {
+    key: 'home',
+    label: 'Home & Kitchen',
+    items: [
+      { key: 'home_appliance', label: CATEGORY_LABELS.home_appliance },
+      { key: 'home_essentials', label: CATEGORY_LABELS.home_essentials },
+      { key: 'fans', label: CATEGORY_LABELS.fans },
+    ],
+  },
+  {
+    key: 'electronics',
+    label: 'Electronics',
+    items: [{ key: 'phone_accessories', label: CATEGORY_LABELS.phone_accessories }],
+  },
+  {
+    key: 'beauty',
+    label: 'Beauty & Personal Care',
+    items: [
+      { key: 'beauty_care', label: CATEGORY_LABELS.beauty_care },
+      { key: 'hair_care', label: CATEGORY_LABELS.hair_care },
+      { key: 'shavers', label: CATEGORY_LABELS.shavers },
+    ],
+  },
+  {
+    key: 'kids',
+    label: 'Kids & Toys',
+    items: [{ key: 'toys', label: CATEGORY_LABELS.toys }],
+  },
 ];
 
-export const MORE_CATEGORIES = [
-  { key: 'new_gadgets', label: 'New Gadgets', keys: ['new_gadgets'] },
-  { key: 'must_have', label: 'Must Have', keys: ['must_have'] },
-  { key: 'home_appliance', label: 'Home Appliance', keys: ['home_appliance'] },
-  { key: 'home_essentials', label: 'Home Essentials', keys: ['home_essentials'] },
-  { key: 'phone_accessories', label: 'Phone Accessories', keys: ['phone_accessories'] },
-  { key: 'beauty_care', label: 'Beauty Care', keys: ['beauty_care'] },
-  { key: 'fans', label: 'Fans', keys: ['fans'] },
-  { key: 'shavers', label: 'Shavers', keys: ['shavers'] },
-  { key: 'hair_care', label: 'Hair Care', keys: ['hair_care'] },
-];
+/** Old `/?cat=home` style group URLs still work. */
+export const PRIMARY_CATEGORIES = NAV_CATEGORY_GROUPS.map((group) => ({
+  key: group.key,
+  label: group.label,
+  keys: group.items.map((item) => item.key),
+}));
+
+export const MORE_CATEGORIES = [];
 
 export const ADMIN_CATEGORIES = CANONICAL_CATEGORIES.map((key) => ({
   key,
   label: CATEGORY_LABELS[key],
 }));
 
-const ALL_FILTERS = [...PRIMARY_CATEGORIES, ...MORE_CATEGORIES];
+const ALL_FILTERS = [...PRIMARY_CATEGORIES, ...SHOP_CATEGORIES];
 
 export function normalizeCategory(value) {
   if (value == null) return 'must_have';
@@ -181,13 +218,6 @@ export function countCategories(products) {
   return counts;
 }
 
-function sameKeySet(a, b) {
-  if (!a || !b || a.length !== b.length) return false;
-  const left = [...a].sort().join('|');
-  const right = [...b].sort().join('|');
-  return left === right;
-}
-
 export function isEmptyCategory(filter, counts) {
   if (!filter?.keys?.length) return true;
   return !filter.keys.some((key) => (counts?.[normalizeCategory(key)] || counts?.[key] || 0) > 0);
@@ -195,14 +225,8 @@ export function isEmptyCategory(filter, counts) {
 
 export function visibleCategoryFilters(counts) {
   const loaded = counts && typeof counts === 'object';
-  const primary = PRIMARY_CATEGORIES.filter((cat) => !loaded || !isEmptyCategory(cat, counts));
-  const more = MORE_CATEGORIES.filter((cat) => {
-    if (loaded && isEmptyCategory(cat, counts)) return false;
-    return !PRIMARY_CATEGORIES.some(
-      (group) => group.key === cat.key || sameKeySet(group.keys, cat.keys),
-    );
-  });
-  return { primary, more };
+  const primary = SHOP_CATEGORIES.filter((cat) => !loaded || !isEmptyCategory(cat, counts));
+  return { primary, more: [] };
 }
 
 export function applyCatalogQuery(products, { cat, q, sort, page, limit } = {}) {
