@@ -31,6 +31,7 @@ const AdminQRCode = lazy(() => import('@/pages/admin/AdminQRCode'));
 const AdminPendingTransactions = lazy(() => import('@/pages/admin/AdminPendingTransactions'));
 const AdminRecovery = lazy(() => import('@/pages/admin/AdminRecovery'));
 const AdminLoyalty = lazy(() => import('@/pages/admin/AdminLoyalty'));
+const LegalPage = lazy(() => import('@/pages/LegalPage'));
 
 function PageFallback() {
   return (
@@ -55,6 +56,10 @@ function AppRoutes() {
         <Route path="/review-profile" element={<ReviewProfile />} />
         <Route path="/my-account" element={<MyAccount />} />
         <Route path="/winwin-card" element={<WinWinCard />} />
+        <Route path="/privacy-policy" element={<LegalPage />} />
+        <Route path="/terms-and-conditions" element={<LegalPage />} />
+        <Route path="/shipping-policy" element={<LegalPage />} />
+        <Route path="/returns-and-refunds" element={<LegalPage />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/pending" element={<AdminPendingTransactions />} />
