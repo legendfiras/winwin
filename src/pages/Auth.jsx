@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { invokePublic, setCustomer, setSessionToken } from '@/lib/customerAuth';
 import { activationPath } from '@/lib/accountGuards';
 import Navbar from '@/components/Navbar';
@@ -12,7 +12,7 @@ import { store } from '@/api/store';
 import CountryPhoneInput from '@/components/CountryPhoneInput';
 import { countryOptions, formatInternational } from '@/lib/countries';
 import { toast } from 'sonner';
-import { UserPlus, LogIn, KeyRound } from 'lucide-react';
+import { UserPlus, LogIn } from 'lucide-react';
 
 export default function Auth() {
   return (
@@ -37,14 +37,10 @@ export default function Auth() {
 }
 
 function SignInForm() {
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [migratedEmail, setMigratedEmail] = useState(searchParams.get('preview') === 'migrated' ? 'preview@winwinleb.com' : '');
-  const previewMigrated = searchParams.get('preview') === 'migrated';
-  const [setupSent, setSetupSent] = useState(false);
-  const [setupLoading, setSetupLoading] = useState(false);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -55,8 +51,10 @@ function SignInForm() {
         password,
       });
       if (data?.code === 'MIGRATED_SETUP_REQUIRED') {
-        setMigratedEmail(email.toLowerCase());
-        setSetupSent(false);
+        // Old-platform account with no password here yet: activate it on the
+        // recovery page (no email needed).
+        toast.message('Welcome to the new WinWin! Confirm your details to set a new password.');
+        navigate(`/recover-account?email=${encodeURIComponent(email.trim().toLowerCase())}`);
         return;
       }
       if (data?.error) {
@@ -74,57 +72,6 @@ function SignInForm() {
       setLoading(false);
     }
   };
-
-  const sendSetup = async () => {
-    if (previewMigrated) {
-      setSetupSent(true);
-      return;
-    }
-    setSetupLoading(true);
-    try {
-      await invokePublic('requestPasswordReset', {
-        email: migratedEmail,
-        app_origin: window.location.origin,
-      });
-      setSetupSent(true);
-    } catch {
-      setSetupSent(true);
-    } finally {
-      setSetupLoading(false);
-    }
-  };
-
-  if (migratedEmail) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-heading">
-            <KeyRound className="w-5 h-5 text-primary" /> Reset password
-          </CardTitle>
-          <CardDescription>
-            Enter your email and we will send a link to set a new password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {setupSent ? (
-            <p className="text-sm text-muted-foreground">
-              Check your email for the reset link. It expires in 1 hour and can be used once.
-            </p>
-          ) : (
-            <Button type="button" className="w-full" onClick={sendSetup} disabled={setupLoading}>
-              {setupLoading ? 'Sending...' : 'Reset password'}
-            </Button>
-          )}
-          <p className="text-sm text-center">
-            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your email?</Link>
-          </p>
-          <Button type="button" variant="ghost" className="w-full" onClick={() => setMigratedEmail('')}>
-            Back to sign in
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -151,7 +98,7 @@ function SignInForm() {
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
           <p className="text-sm text-center text-muted-foreground">
-            <Link to="/recover-account" className="text-primary hover:underline">Can&apos;t access your email?</Link>
+            <Link to="/recover-account" className="text-primary hover:underline">Customer from the old WinWin site? Activate your account</Link>
           </p>
         </form>
       </CardContent>

@@ -1079,6 +1079,131 @@ async function submitRecovery(env, body, request) {
   });
 }
 
+function maskEmail(email) {
+  const [user, domain] = String(email || '').split('@');
+  if (!user || !domain) return '';
+  return `${user.slice(0, 2)}${'*'.repeat(Math.max(1, user.length - 2))}@${domain}`;
+}
+
+function sameFirstName(row, firstName) {
+  const want = String(firstName || '').trim().toLowerCase();
+  const have = String(row.first_name || row.full_name || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
+  return Boolean(want) && want === have;
+}
+
+// Finds the old-platform account a customer is activating on the new site,
+// using the email they sign in with plus the phone on file. No email is sent.
+async function findClaimableAccount(env, body) {
+  const email = normalizeEmail(body.email);
+  const mobile = String(body.mobile || body.phone || '').trim();
+  const firstName = String(body.first_name || '').trim();
+  const lastName = String(body.last_name || '').trim();
+  if (!email || !isValidEmail(email)) return { error: 'Enter a valid email address' };
+  if (!firstName || !lastName) return { error: 'Enter your first and last name' };
+  if (!isUsablePhone(mobile)) return { error: 'Enter your full phone number' };
+  const phoneKeys = phoneVariants(mobile);
+  const phoneMatches = (value) => phoneVariants(value).some((v) => phoneKeys.includes(v));
+  const noPassword = 'This account already has a password on the new site. Go back and sign in, or use "Forgot password".';
+
+  const owner = await findLoginEmail(env, email).first();
+  if (owner) {
+    if (!owner.password_setup_required) return { error: noPassword, code: 'HAS_PASSWORD' };
+    if (!phoneMatches(owner.mobile_normalized || owner.mobile)) {
+      return { error: 'This phone number does not match the one on your account. Enter the number you used on the old WinWin site.' };
+    }
+    return { customer: owner, email };
+  }
+
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM customers WHERE account_source = 'migrated' AND migration_status != ?
+       AND mobile_normalized IN (${phoneKeys.map(() => '?').join(', ')}) LIMIT 10`,
+  )
+    .bind(MIGRATION_STATUS.MERGED, ...phoneKeys)
+    .all();
+  let candidates = results || [];
+  if (!candidates.length) {
+    return { error: 'We could not find an old WinWin account with this email or phone number. Check them, or create a new account.' };
+  }
+  if (candidates.length > 1) {
+    const byName = candidates.filter((row) => sameFirstName(row, firstName));
+    if (byName.length === 1) candidates = byName;
+  }
+  if (candidates.length > 1) {
+    return { error: 'More than one account uses this phone number. Please contact us on WhatsApp so we can activate the right one.' };
+  }
+  const match = candidates[0];
+  if (!match.password_setup_required) return { error: noPassword, code: 'HAS_PASSWORD' };
+  if (match.email_status === EMAIL_STATUS.VALID && match.email_normalized && match.email_normalized !== email) {
+    return { error: `This phone number is linked to ${maskEmail(match.email_normalized)}. Sign in with that email instead.` };
+  }
+  return { customer: match, email };
+}
+
+async function checkAccountClaim(env, body, request) {
+  const allowed = await rateLimit(env, `claim-check:${clientIp(request)}`, 15, 60 * 60);
+  if (!allowed) return json({ error: 'Too many attempts. Try again later.' }, 429);
+  const found = await findClaimableAccount(env, body);
+  if (found.error) return json({ error: found.error, code: found.code || '' }, 400);
+  return json({ success: true });
+}
+
+async function claimAccount(env, body, request) {
+  const allowed = await rateLimit(env, `claim:${clientIp(request)}`, 10, 60 * 60);
+  if (!allowed) return json({ error: 'Too many attempts. Try again later.' }, 429);
+  const password = String(body.password || body.new_password || '');
+  if (password.length < 8) return json({ error: 'Password must be at least 8 characters' }, 400);
+  const found = await findClaimableAccount(env, body);
+  if (found.error) return json({ error: found.error, code: found.code || '' }, 400);
+  const { customer, email } = found;
+  const names = splitName('', body.first_name, body.last_name);
+  const mobile = String(body.mobile || body.phone || '').trim();
+  const country = String(body.country || customer.country || '').trim();
+  const now = nowIso();
+  await env.DB.prepare(
+    `UPDATE customers SET full_name = ?, first_name = ?, last_name = ?, mobile = ?, mobile_normalized = ?, country = ?,
+      email = ?, email_normalized = ?, email_status = ?, password_setup_required = 0, profile_review_required = 0,
+      migration_status = ?, updated_date = ? WHERE id = ?`,
+  )
+    .bind(
+      names.full_name,
+      names.first_name,
+      names.last_name,
+      mobile,
+      normalizePhone(mobile),
+      country,
+      email,
+      email,
+      customer.email_normalized === email && customer.email_status === EMAIL_STATUS.VERIFIED
+        ? EMAIL_STATUS.VERIFIED
+        : EMAIL_STATUS.UNVERIFIED,
+      MIGRATION_STATUS.CLAIMED,
+      now,
+      customer.id,
+    )
+    .run();
+  const password_hash = await hashPassword(password);
+  const auth = await getAuth(env, customer.id);
+  if (auth) {
+    await env.DB.prepare(
+      `UPDATE customer_auth SET password_hash = ?, reset_token_hash = '', reset_expires_at = '', must_reset_password = 0
+       WHERE customer_id = ?`,
+    )
+      .bind(password_hash, customer.id)
+      .run();
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO customer_auth (id, customer_id, password_hash, reset_token_hash, reset_expires_at, must_reset_password, created_date)
+       VALUES (?, ?, ?, '', '', 0, ?)`,
+    )
+      .bind(randomId(), customer.id, password_hash, now)
+      .run();
+  }
+  await env.DB.prepare('DELETE FROM customer_sessions WHERE customer_id = ?').bind(customer.id).run();
+  const session_token = await createSession(env, customer.id);
+  const fresh = await getCustomer(env, customer.id);
+  return json({ success: true, session_token, customer: publicCustomer(fresh) });
+}
+
 async function applyApprovedRecovery(env, customer, requestedEmail, origin) {
   const taken = await findLoginEmail(env, requestedEmail).first();
   if (taken && taken.id !== customer.id) {
@@ -1464,6 +1589,8 @@ export async function handleCustomerFn(env, name, body, request) {
   if (name === 'listAddresses') return listAddresses(env, body);
   if (name === 'saveAddress') return saveAddress(env, body);
   if (name === 'submitAccountRecovery') return submitRecovery(env, body, request);
+  if (name === 'checkAccountClaim') return checkAccountClaim(env, body, request);
+  if (name === 'claimAccount') return claimAccount(env, body, request);
   if (name === 'verifyEmail') return verifyEmail(env, body);
   if (name === 'listCustomers') {
     if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);

@@ -1,48 +1,91 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { invokePublic } from '@/lib/customerAuth';
+import { Link, useSearchParams } from 'react-router-dom';
+import { invokePublic, setCustomer, setSessionToken } from '@/lib/customerAuth';
+import { activationPath } from '@/lib/accountGuards';
 import Navbar from '@/components/Navbar';
+import CountryPhoneInput from '@/components/CountryPhoneInput';
+import { countryOptions, formatInternational } from '@/lib/countries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LifeBuoy } from 'lucide-react';
-import CountryPhoneInput from '@/components/CountryPhoneInput';
-import { countryOptions, formatInternational } from '@/lib/countries';
+import { toast } from 'sonner';
+import { LifeBuoy, KeyRound } from 'lucide-react';
 
+// Old-platform customers activate their account here: confirm who they are
+// (email, name, phone), then choose a password and are signed in right away.
 export default function RecoverAccount() {
+  const [searchParams] = useSearchParams();
+  const [step, setStep] = useState('details');
   const [form, setForm] = useState({
-    requested_email: '',
+    email: searchParams.get('email') || '',
+    first_name: '',
+    last_name: '',
     country: 'Lebanon',
     phone: '',
-    legacy_user_id: '',
-    card_number: '',
-    full_name: '',
   });
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  const payload = () => ({
+    email: form.email.trim().toLowerCase(),
+    first_name: form.first_name.trim(),
+    last_name: form.last_name.trim(),
+    country: form.country,
+    mobile: formatInternational(countryOptions().find((c) => c.name === form.country)?.dial || '', form.phone),
+  });
+
+  const handleNext = async (e) => {
     e.preventDefault();
     setError('');
+    if (form.phone.replace(/\D/g, '').length < 7) {
+      setError('Enter your full phone number');
+      return;
+    }
     setLoading(true);
     try {
-      const data = await invokePublic('submitAccountRecovery', {
-        ...form,
-        phone: formatInternational(countryOptions().find((c) => c.name === form.country)?.dial || '', form.phone),
-        requested_email: form.requested_email.toLowerCase(),
-        app_origin: window.location.origin,
-      });
+      const data = await invokePublic('checkAccountClaim', payload());
       if (data?.error) {
         setError(data.error);
         return;
       }
-      setResult(data);
+      setStep('password');
     } catch (err) {
-      setError(err.message || 'Could not submit recovery request');
+      setError(err.message || 'Could not check your account');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await invokePublic('claimAccount', { ...payload(), password });
+      if (data?.error) {
+        setError(data.error);
+        return;
+      }
+      setSessionToken(data.session_token);
+      setCustomer(data.customer);
+      toast.success('Your password is saved. Welcome to the new WinWin!');
+      const next = activationPath(data.customer) || '/my-account';
+      setTimeout(() => { window.location.href = next; }, 600);
+    } catch (err) {
+      setError(err.message || 'Could not save your password');
     } finally {
       setLoading(false);
     }
@@ -54,55 +97,89 @@ export default function RecoverAccount() {
       <div className="max-w-md mx-auto px-4 py-12">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-heading">
-              <LifeBuoy className="w-5 h-5 text-primary" /> Recover account
-            </CardTitle>
-            <CardDescription>
-              Enter the email you want to use and your phone, customer ID, or loyalty card number. If the email is already on your account, we will send you a password link.
-            </CardDescription>
+            {step === 'details' ? (
+              <>
+                <CardTitle className="flex items-center gap-2 font-heading">
+                  <LifeBuoy className="w-5 h-5 text-primary" /> Activate your account
+                </CardTitle>
+                <CardDescription>
+                  Welcome to the new WinWin site. Confirm your details to set a new password. Your points and card stay on your account.
+                </CardDescription>
+              </>
+            ) : (
+              <>
+                <CardTitle className="flex items-center gap-2 font-heading">
+                  <KeyRound className="w-5 h-5 text-primary" /> Choose a new password
+                </CardTitle>
+                <CardDescription>
+                  You will use this password with {form.email.trim().toLowerCase()} from now on.
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
           <CardContent>
-            {result ? (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  {result.message || (result.auto_approved
-                    ? 'We found your account. Check your email for a reset link.'
-                    : 'Your recovery request was submitted. An admin will review it.')}
-                </p>
-                <Link to="/auth" className="text-primary hover:underline text-sm">Back to sign in</Link>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
-                )}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
+            )}
+            {step === 'details' ? (
+              <form onSubmit={handleNext} className="space-y-4">
                 <div>
-                  <Label>Email address</Label>
-                  <Input type="email" value={form.requested_email} onChange={update('requested_email')} required autoComplete="email" />
+                  <Label>Email</Label>
+                  <Input type="email" value={form.email} onChange={update('email')} required autoComplete="email" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>First Name</Label>
+                    <Input value={form.first_name} onChange={update('first_name')} required autoComplete="given-name" />
+                  </div>
+                  <div>
+                    <Label>Last Name</Label>
+                    <Input value={form.last_name} onChange={update('last_name')} required autoComplete="family-name" />
+                  </div>
                 </div>
                 <CountryPhoneInput
                   country={form.country}
                   localPhone={form.phone}
+                  required
                   onChange={({ country, localPhone }) => setForm((prev) => ({ ...prev, country, phone: localPhone }))}
                 />
-                <div>
-                  <Label>Customer / legacy ID</Label>
-                  <Input value={form.legacy_user_id} onChange={update('legacy_user_id')} />
-                </div>
-                <div>
-                  <Label>Loyalty / card number</Label>
-                  <Input value={form.card_number} onChange={update('card_number')} />
-                </div>
-                <div>
-                  <Label>Name <span className="text-muted-foreground text-xs">(optional, not used alone)</span></Label>
-                  <Input value={form.full_name} onChange={update('full_name')} autoComplete="name" />
-                </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Submitting...' : 'Submit recovery request'}
+                  {loading ? 'Checking...' : 'Next'}
                 </Button>
                 <p className="text-sm text-center">
                   <Link to="/auth" className="text-primary hover:underline">Back to sign in</Link>
                 </p>
+              </form>
+            ) : (
+              <form onSubmit={handleSave} className="space-y-4">
+                <div>
+                  <Label>New Password</Label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <Label>Confirm Password</Label>
+                  <Input
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save'}
+                </Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => { setError(''); setStep('details'); }}>
+                  Back
+                </Button>
               </form>
             )}
           </CardContent>
