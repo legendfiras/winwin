@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCustomer, invokeCustomer, setCustomer } from '@/lib/customerAuth';
 import { countryOptions, formatInternational, matchCountry, parseLocalPhone } from '@/lib/countries';
+import CountryPhoneInput from '@/components/CountryPhoneInput';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,14 +17,29 @@ function isJunkAmbassador(code) {
   return c === 'base44.app' || c === 'base44' || c === '2011' || c === '1234' || c === 'admin' || /^[0-9]{1,4}$/.test(c);
 }
 
-function buildInitialForm(customer) {
+function guessCountry(customer) {
   const matched = matchCountry(customer?.country);
+  if (matched) return matched;
+  const lebanon = countryOptions()[0];
+  const digits = String(customer?.mobile || '').replace(/\D/g, '').replace(/^00/, '');
+  if (!digits || digits.startsWith('961') || digits.length <= 8) return lebanon;
+  const other = countryOptions()
+    .filter((c) => c.dial !== '1' && digits.startsWith(c.dial))
+    .sort((a, b) => b.dial.length - a.dial.length)[0];
+  return other || lebanon;
+}
+
+function buildInitialForm(customer) {
+  const matched = guessCountry(customer);
   const country = matched?.name || '';
   const dial = matched?.dial || '';
+  const parts = String(customer?.full_name || '').trim().split(/\s+/).filter(Boolean);
+  const first = String(customer?.first_name || '').trim();
+  const last = String(customer?.last_name || '').trim();
   return {
     country,
-    first_name: String(customer?.first_name || '').trim(),
-    last_name: String(customer?.last_name || '').trim(),
+    first_name: first || (last ? '' : parts[0] || ''),
+    last_name: last || (first ? '' : parts.slice(1).join(' ')),
     email: String(customer?.email || '').trim(),
     local_phone: parseLocalPhone(customer?.mobile, dial),
     ambassador_code: isJunkAmbassador(customer?.ambassador_code) ? '' : String(customer?.ambassador_code || '').trim(),
@@ -41,9 +57,6 @@ const PREVIEW_CUSTOMER = {
   card_number: '35',
   profile_review_required: true,
 };
-
-const SELECT_CLASS =
-  'flex h-9 w-full rounded-[10px] border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export default function ReviewProfile() {
   const navigate = useNavigate();
@@ -63,7 +76,29 @@ export default function ReviewProfile() {
     }
     if (!current.profile_review_required) {
       navigate('/my-account');
+      return;
     }
+    // Load what we already have on file so the customer only fixes what is
+    // missing or wrong. Keep anything they have typed in the meantime.
+    let cancelled = false;
+    invokeCustomer('getMyAccount')
+      .then((data) => {
+        if (cancelled || !data?.customer) return;
+        setCustomer(data.customer);
+        const saved = buildInitialForm(data.customer);
+        const initial = buildInitialForm(current);
+        setForm((prev) => {
+          const next = { ...prev };
+          for (const key of Object.keys(saved)) {
+            if (prev[key] === initial[key] && saved[key]) next[key] = saved[key];
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [navigate, isPreview]);
 
   const selected = countries.find((c) => c.name === form.country) || null;
@@ -83,16 +118,6 @@ export default function ReviewProfile() {
   }, [form]);
 
   if (!existing) return null;
-
-  const onCountryChange = (name) => {
-    const next = countries.find((c) => c.name === name);
-    const nextDial = next?.dial || '';
-    setForm((prev) => ({
-      ...prev,
-      country: name,
-      local_phone: parseLocalPhone(prev.local_phone, nextDial),
-    }));
-  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -165,45 +190,12 @@ export default function ReviewProfile() {
               </div>
             ) : null}
             <form onSubmit={save} className="space-y-4">
-              <div>
-                <Label>Country</Label>
-                <select
-                  className={SELECT_CLASS}
-                  value={form.country}
-                  onChange={(e) => onCountryChange(e.target.value)}
-                  required
-                  autoComplete="country-name"
-                >
-                  <option value="" disabled>Select your country</option>
-                  {countries.map((c) => (
-                    <option key={c.iso} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {form.country ? (
-                <div>
-                  <Label>Phone Number</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      className="w-[5.5rem] shrink-0 text-center px-2"
-                      value={dial ? `+${dial}` : ''}
-                      readOnly
-                      tabIndex={-1}
-                      aria-label="Country calling code"
-                    />
-                    <Input
-                      value={form.local_phone}
-                      onChange={(e) => setForm({ ...form, local_phone: e.target.value.replace(/[^\d]/g, '') })}
-                      required
-                      inputMode="numeric"
-                      autoComplete="tel-national"
-                      placeholder={dial === '961' ? '3XXXXXXX' : 'Phone number'}
-                    />
-                  </div>
-                </div>
-              ) : null}
+              <CountryPhoneInput
+                country={form.country}
+                localPhone={form.local_phone}
+                required
+                onChange={({ country, localPhone }) => setForm((prev) => ({ ...prev, country, local_phone: localPhone }))}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>First Name</Label>

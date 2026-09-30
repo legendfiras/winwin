@@ -7,6 +7,7 @@ export const MIGRATION_STATUS = {
   PENDING: 'pending',
   CLAIMED: 'claimed',
   NEEDS_RECOVERY: 'needs_recovery',
+  MERGED: 'merged',
 };
 
 export const EMAIL_STATUS = {
@@ -43,6 +44,18 @@ export function normalizePhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return '';
   return digits.replace(/^00/, '');
+}
+
+// Legacy rows store Lebanese numbers as 71758170, 071758170 or 96171758170.
+// Return every stored form of the same number so lookups match all of them.
+export function phoneVariants(value) {
+  const digits = normalizePhone(value);
+  if (!digits) return [];
+  let local = digits;
+  if (local.startsWith('961') && local.length >= 10) local = local.slice(3);
+  local = local.replace(/^0+/, '');
+  if (!local) return [digits];
+  return [...new Set([digits, local, `0${local}`, `961${local}`])];
 }
 
 export function isUsablePhone(value) {

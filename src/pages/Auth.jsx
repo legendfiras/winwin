@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { store } from '@/api/store';
+import CountryPhoneInput from '@/components/CountryPhoneInput';
+import { countryOptions, formatInternational } from '@/lib/countries';
 import { toast } from 'sonner';
 import { UserPlus, LogIn, KeyRound } from 'lucide-react';
 
@@ -162,6 +164,7 @@ function SignUpForm() {
     first_name: '',
     last_name: '',
     email: '',
+    country: 'Lebanon',
     mobile: '',
     password: '',
     confirm: '',
@@ -189,13 +192,20 @@ function SignUpForm() {
       toast.error('Password must be at least 8 characters');
       return;
     }
+    if (form.mobile.replace(/\D/g, '').length < 7) {
+      toast.error('Enter a complete phone number');
+      return;
+    }
+    const dial = countryOptions().find((c) => c.name === form.country)?.dial || '';
+    const fullMobile = formatInternational(dial, form.mobile);
     setLoading(true);
     try {
       const data = await invokePublic('registerCustomer', {
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email.toLowerCase(),
-        mobile: form.mobile,
+        mobile: fullMobile,
+        country: form.country,
         password: form.password,
         ambassador_code: form.ambassador_code,
         app_origin: window.location.origin,
@@ -208,7 +218,7 @@ function SignUpForm() {
       setSessionToken(data.session_token);
       setCustomer(data.customer);
       const ambassadorInfo = form.ambassador_code ? `\nAmbassador Code: ${form.ambassador_code}` : '';
-      const waMsg = encodeURIComponent(`🆕 New WinWin Customer!\n\nName: ${form.first_name} ${form.last_name}\nEmail: ${form.email}\nMobile: ${form.mobile}${ambassadorInfo}`);
+      const waMsg = encodeURIComponent(`🆕 New WinWin Customer!\n\nName: ${form.first_name} ${form.last_name}\nEmail: ${form.email}\nMobile: ${fullMobile}${ambassadorInfo}`);
       window.open(`https://wa.me/${waNumber || '96178714472'}?text=${waMsg}`, '_blank');
       toast.success(data.points_awarded
         ? `Welcome to WinWin! You received ${data.points_awarded} bonus points.`
@@ -245,10 +255,13 @@ function SignUpForm() {
             <Label>Email</Label>
             <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required autoComplete="email" />
           </div>
-          <div>
-            <Label>Phone</Label>
-            <Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} required placeholder="+961..." autoComplete="tel" />
-          </div>
+          <CountryPhoneInput
+            country={form.country}
+            localPhone={form.mobile}
+            required
+            phoneLabel="Phone"
+            onChange={({ country, localPhone }) => setForm((prev) => ({ ...prev, country, mobile: localPhone }))}
+          />
           <div>
             <Label>Password</Label>
             <Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required autoComplete="new-password" />

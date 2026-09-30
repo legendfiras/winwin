@@ -7,6 +7,7 @@ import {
   LEDGER_TYPE,
   normalizeEmail,
   normalizePhone,
+  phoneVariants,
   isValidEmail,
   splitName,
   countEmails,
@@ -937,12 +938,8 @@ async function submitRecovery(env, body, request) {
     return json({ error: 'Provide your phone, customer ID, or loyalty card number' }, 400);
   }
 
-  const emailTaken = await findLoginEmail(env, requested_email).first();
-  if (emailTaken) {
-    return json({ error: 'That email is already used by another account.' }, 409);
-  }
-
-  const phoneNorm = normalizePhone(submitted_phone);
+  const phoneKeys = phoneVariants(submitted_phone);
+  const phoneMatches = (value) => phoneKeys.length > 0 && phoneVariants(value).some((v) => phoneKeys.includes(v));
   let matches = [];
   if (submitted_legacy_id) {
     const row = await env.DB.prepare(
@@ -960,28 +957,79 @@ async function submitRecovery(env, body, request) {
       .all();
     matches.push(...(results || []));
   }
-  if (phoneNorm) {
+  if (phoneKeys.length) {
     const { results } = await env.DB.prepare(
-      `SELECT * FROM customers WHERE account_source = 'migrated' AND mobile_normalized = ? LIMIT 5`,
+      `SELECT * FROM customers WHERE account_source = 'migrated'
+         AND mobile_normalized IN (${phoneKeys.map(() => '?').join(', ')}) LIMIT 5`,
     )
-      .bind(phoneNorm)
+      .bind(...phoneKeys)
       .all();
     matches.push(...(results || []));
   }
   const unique = [];
   const seen = new Set();
   for (const row of matches) {
-    if (!seen.has(row.id)) {
+    if (!seen.has(row.id) && row.migration_status !== MIGRATION_STATUS.MERGED) {
       seen.add(row.id);
       unique.push(row);
     }
   }
   const strong = unique.filter((row) => {
-    const phoneOk = phoneNorm && row.mobile_normalized === phoneNorm;
+    const phoneOk = phoneMatches(row.mobile_normalized || row.mobile);
     const idOk = submitted_legacy_id && (row.legacy_user_id === submitted_legacy_id || row.id === submitted_legacy_id);
     const cardOk = submitted_card_number && row.card_number === submitted_card_number;
     return (idOk && (phoneOk || cardOk)) || (cardOk && phoneOk);
   });
+
+  const emailOwner = await findLoginEmail(env, requested_email).first();
+  if (emailOwner) {
+    const ownsEmail = seen.has(emailOwner.id) || phoneMatches(emailOwner.mobile_normalized || emailOwner.mobile);
+    if (!ownsEmail) {
+      return json({
+        error: 'That email belongs to a different account. If it is yours, sign in with it or use "Forgot password"; otherwise enter another email.',
+      }, 409);
+    }
+    // The email is already on this customer's own account. Never change the
+    // email or password here — only send a reset link to that inbox.
+    await issueResetToken(env, emailOwner, body.app_origin);
+    const legacy = strong.length === 1 ? strong[0] : unique.length === 1 ? unique[0] : null;
+    if (legacy && legacy.id !== emailOwner.id) {
+      // They signed up again with a new account; queue the old one for an
+      // admin to merge its points and card into the account they use now.
+      await env.DB.prepare(
+        `INSERT INTO recovery_requests (
+          id, customer_id, requested_email, submitted_name, submitted_phone, submitted_legacy_id, submitted_card_number,
+          match_notes, status, created_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          randomId(),
+          legacy.id,
+          requested_email,
+          submitted_name,
+          submitted_phone,
+          submitted_legacy_id,
+          submitted_card_number,
+          `merge_into=${emailOwner.id}`,
+          RECOVERY_STATUS.PENDING,
+          nowIso(),
+        )
+        .run();
+      return json({
+        success: true,
+        auto_approved: true,
+        message: 'This email already has a WinWin account. Sign in with it (we emailed you a password link in case you need it). Our team will move the points and card from your old account onto it.',
+      });
+    }
+    const hasPassword = !emailOwner.password_setup_required;
+    return json({
+      success: true,
+      auto_approved: true,
+      message: hasPassword
+        ? 'This email is already on your WinWin account. Sign in with your password. We also emailed a reset link in case you forgot it.'
+        : 'We found your account with this email. Check your inbox for a link to set your password. Your points and card are kept.',
+    });
+  }
 
   const attached = strong.length === 1 ? strong[0] : unique.length === 1 ? unique[0] : null;
   const customer = attached;
@@ -1046,6 +1094,63 @@ async function applyApprovedRecovery(env, customer, requestedEmail, origin) {
   await issueResetToken(env, { ...fresh, email: requestedEmail }, origin);
 }
 
+async function mergeLegacyAccount(env, legacy, target, admin) {
+  const points = Math.max(0, Number(legacy.points) || 0);
+  if (points > 0) {
+    await creditPoints(env, {
+      customer: target,
+      amount: points,
+      type: LEDGER_TYPE.MIGRATION_BALANCE,
+      reason: `Merged from old account ${legacy.legacy_user_id || legacy.id}`,
+      source: 'ACCOUNT_MERGE',
+      idempotency_key: `ACCOUNT_MERGE:${legacy.id}`,
+      created_by_admin_id: admin.id,
+    });
+    await creditPoints(env, {
+      customer: legacy,
+      amount: -points,
+      type: LEDGER_TYPE.MIGRATION_BALANCE,
+      reason: `Moved to account ${target.id}`,
+      source: 'ACCOUNT_MERGE',
+      idempotency_key: `ACCOUNT_MERGE_OUT:${legacy.id}`,
+      created_by_admin_id: admin.id,
+    });
+  }
+  const fresh = await getCustomer(env, target.id);
+  const takeCard = legacy.card_number && (
+    !fresh.card_number ||
+    String(legacy.card_expiry_date || '') > String(fresh.card_expiry_date || '')
+  );
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE customers SET
+        legacy_user_id = CASE WHEN legacy_user_id = '' OR legacy_user_id IS NULL THEN ? ELSE legacy_user_id END,
+        has_winwin_card = ?, card_number = ?, card_purchase_date = ?, card_expiry_date = ?,
+        draw_entries = draw_entries + ?, wallet_balance = wallet_balance + ?,
+        country = CASE WHEN country = '' OR country IS NULL THEN ? ELSE country END,
+        updated_date = ?
+       WHERE id = ?`,
+    ).bind(
+      legacy.legacy_user_id || '',
+      takeCard ? (legacy.has_winwin_card ? 1 : 0) : (fresh.has_winwin_card ? 1 : 0),
+      takeCard ? legacy.card_number : fresh.card_number || '',
+      takeCard ? legacy.card_purchase_date || '' : fresh.card_purchase_date || '',
+      takeCard ? legacy.card_expiry_date || '' : fresh.card_expiry_date || '',
+      Math.max(0, Number(legacy.draw_entries) || 0),
+      Math.max(0, Number(legacy.wallet_balance) || 0),
+      legacy.country || '',
+      nowIso(),
+      target.id,
+    ),
+    env.DB.prepare(
+      `UPDATE customers SET migration_status = ?, draw_entries = 0, wallet_balance = 0, has_winwin_card = 0, card_number = '',
+        password_setup_required = 0, updated_date = ? WHERE id = ?`,
+    ).bind(MIGRATION_STATUS.MERGED, nowIso(), legacy.id),
+    env.DB.prepare('UPDATE loyalty_memberships SET customer_id = ? WHERE customer_id = ?').bind(target.id, legacy.id),
+    env.DB.prepare('DELETE FROM customer_sessions WHERE customer_id = ?').bind(legacy.id),
+  ]);
+}
+
 async function listRecoveryRequests(env, body) {
   const status = String(body.status || '');
   const sql = status
@@ -1083,6 +1188,22 @@ async function reviewRecovery(env, body, admin) {
   if (!customer) return json({ error: 'Customer not found' }, 404);
   if (customer.account_source !== ACCOUNT_SOURCE.MIGRATED) {
     return json({ error: 'Recovery can only be applied to migrated accounts' }, 400);
+  }
+  const mergeTarget = await findLoginEmail(env, row.requested_email).first();
+  if (mergeTarget && mergeTarget.id !== customer.id) {
+    // The customer already uses this email on another account (usually one
+    // they signed up with again). Move the old balance and card onto it and
+    // leave that account's password untouched.
+    if (customer.migration_status === MIGRATION_STATUS.MERGED) {
+      return json({ error: 'This old account was already merged' }, 409);
+    }
+    await mergeLegacyAccount(env, customer, mergeTarget, admin);
+    await env.DB.prepare(
+      'UPDATE recovery_requests SET status = ?, customer_id = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?',
+    )
+      .bind(RECOVERY_STATUS.COMPLETED, customerId, admin.id, nowIso(), id)
+      .run();
+    return json({ success: true, merged_into: mergeTarget.id });
   }
   if (customer.migration_status === MIGRATION_STATUS.CLAIMED && !customer.password_setup_required) {
     return json({ error: 'This account is already active' }, 409);

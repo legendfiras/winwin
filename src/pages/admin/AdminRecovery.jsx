@@ -43,7 +43,7 @@ export default function AdminRecovery() {
         toast.error(data.error);
         return;
       }
-      toast.success('Updated');
+      toast.success(data?.merged_into ? 'Old account merged into the new one' : 'Updated');
       qc.invalidateQueries({ queryKey: ['recoveryRequests'] });
       setDetail(null);
       setRejectOpen(null);
@@ -78,6 +78,11 @@ export default function AdminRecovery() {
               <p className="text-sm">Phone: {row.submitted_phone || '—'}</p>
               <p className="text-sm">Legacy ID: {row.submitted_legacy_id || '—'}</p>
               <p className="text-sm">Card: {row.submitted_card_number || '—'}</p>
+              {String(row.match_notes || '').startsWith('merge_into=') && row.status === 'PENDING' ? (
+                <p className="text-sm text-amber-700">
+                  Customer already has a new account with this email. Approve moves the old points and card onto it (password unchanged).
+                </p>
+              ) : null}
               {row.customer ? (
                 <p className="text-sm">
                   Points: {row.customer.points} · Card: {row.customer.has_winwin_card ? 'Yes' : 'No'}

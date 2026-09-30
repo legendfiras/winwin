@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LifeBuoy } from 'lucide-react';
+import CountryPhoneInput from '@/components/CountryPhoneInput';
+import { countryOptions, formatInternational } from '@/lib/countries';
 
 export default function RecoverAccount() {
   const [form, setForm] = useState({
     requested_email: '',
+    country: 'Lebanon',
     phone: '',
     legacy_user_id: '',
     card_number: '',
@@ -29,6 +32,7 @@ export default function RecoverAccount() {
     try {
       const data = await invokePublic('submitAccountRecovery', {
         ...form,
+        phone: formatInternational(countryOptions().find((c) => c.name === form.country)?.dial || '', form.phone),
         requested_email: form.requested_email.toLowerCase(),
         app_origin: window.location.origin,
       });
@@ -54,7 +58,7 @@ export default function RecoverAccount() {
               <LifeBuoy className="w-5 h-5 text-primary" /> Recover account
             </CardTitle>
             <CardDescription>
-              Use your customer ID, loyalty card number, or phone. Name alone is not enough.
+              Enter the email you want to use and your phone, customer ID, or loyalty card number. If the email is already on your account, we will send you a password link.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,13 +77,14 @@ export default function RecoverAccount() {
                   <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
                 )}
                 <div>
-                  <Label>New email address</Label>
+                  <Label>Email address</Label>
                   <Input type="email" value={form.requested_email} onChange={update('requested_email')} required autoComplete="email" />
                 </div>
-                <div>
-                  <Label>Phone number</Label>
-                  <Input value={form.phone} onChange={update('phone')} autoComplete="tel" />
-                </div>
+                <CountryPhoneInput
+                  country={form.country}
+                  localPhone={form.phone}
+                  onChange={({ country, localPhone }) => setForm((prev) => ({ ...prev, country, phone: localPhone }))}
+                />
                 <div>
                   <Label>Customer / legacy ID</Label>
                   <Input value={form.legacy_user_id} onChange={update('legacy_user_id')} />
