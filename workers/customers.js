@@ -1,4 +1,5 @@
 import { corsHeaders } from '../src/lib/allowedOrigins.js';
+import { Resend } from 'resend';
 import {
   ACCOUNT_SOURCE,
   MIGRATION_STATUS,
@@ -22,8 +23,10 @@ import {
 const SIGNUP_POINTS = 10;
 const DAILY_POINTS = 2;
 const SESSION_DAYS = 30;
-const RESET_HOURS = 1;
+const RESET_MINUTES = 30;
 const PBKDF2_ITERS = 100000;
+const RESET_REQUEST_MESSAGE = 'If an account exists for this email, a password reset link has been sent.';
+const EMAIL_TIMEOUT_MS = 8000;
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -49,6 +52,12 @@ function addDaysIso(days) {
 function addHoursIso(hours) {
   const d = new Date();
   d.setTime(d.getTime() + hours * 60 * 60 * 1000);
+  return d.toISOString();
+}
+
+function addMinutesIso(minutes) {
+  const d = new Date();
+  d.setTime(d.getTime() + minutes * 60 * 1000);
   return d.toISOString();
 }
 
@@ -150,6 +159,15 @@ export async function ensureCustomerSchema(env) {
       password_setup_required INTEGER NOT NULL DEFAULT 0,
       profile_review_required INTEGER NOT NULL DEFAULT 0,
       email_status TEXT NOT NULL DEFAULT 'unverified',
+      last_login_at TEXT NOT NULL DEFAULT '',
+      account_status TEXT NOT NULL DEFAULT 'active',
+      marketing_emails_enabled INTEGER NOT NULL DEFAULT 0,
+      marketing_prompt_shown_at TEXT NOT NULL DEFAULT '',
+      marketing_prompt_dismissed_at TEXT NOT NULL DEFAULT '',
+      marketing_subscribed_at TEXT NOT NULL DEFAULT '',
+      marketing_unsubscribed_at TEXT NOT NULL DEFAULT '',
+      last_marketing_email_sent_at TEXT NOT NULL DEFAULT '',
+      last_marketing_email_attempted_at TEXT NOT NULL DEFAULT '',
       created_date TEXT,
       updated_date TEXT
     )`),
@@ -232,6 +250,15 @@ export async function ensureCustomerSchema(env) {
   const alters = [
     "ALTER TABLE customer_auth ADD COLUMN verify_token_hash TEXT",
     "ALTER TABLE customer_auth ADD COLUMN verify_expires_at TEXT",
+    "ALTER TABLE customers ADD COLUMN last_login_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN account_status TEXT NOT NULL DEFAULT 'active'",
+    'ALTER TABLE customers ADD COLUMN marketing_emails_enabled INTEGER NOT NULL DEFAULT 0',
+    "ALTER TABLE customers ADD COLUMN marketing_prompt_shown_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN marketing_prompt_dismissed_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN marketing_subscribed_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN marketing_unsubscribed_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN last_marketing_email_sent_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE customers ADD COLUMN last_marketing_email_attempted_at TEXT NOT NULL DEFAULT ''",
   ];
   for (const sql of alters) {
     try {
@@ -293,6 +320,12 @@ function publicCustomer(row, extras = {}) {
     password_setup_required: Boolean(row.password_setup_required),
     profile_review_required: Boolean(row.profile_review_required),
     email_status: row.email_status || EMAIL_STATUS.UNVERIFIED,
+    account_status: row.account_status || 'active',
+    marketing_emails_enabled: Boolean(row.marketing_emails_enabled) && !row.marketing_unsubscribed_at,
+    marketing_prompt_shown_at: row.marketing_prompt_shown_at || '',
+    marketing_prompt_dismissed_at: row.marketing_prompt_dismissed_at || '',
+    marketing_subscribed_at: row.marketing_subscribed_at || '',
+    marketing_unsubscribed_at: row.marketing_unsubscribed_at || '',
     server_today: today,
     ...extras,
   };
@@ -308,11 +341,13 @@ async function getAuth(env, customerId) {
 
 async function createSession(env, customerId) {
   const token = randomToken();
-  await env.DB.prepare(
-    'INSERT INTO customer_sessions (id, customer_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
-  )
-    .bind(randomId(), customerId, await sha256(token), addDaysIso(SESSION_DAYS))
-    .run();
+  const loginAt = nowIso();
+  await env.DB.batch([
+    env.DB.prepare(
+      'INSERT INTO customer_sessions (id, customer_id, token_hash, expires_at) VALUES (?, ?, ?, ?)',
+    ).bind(randomId(), customerId, await sha256(token), addDaysIso(SESSION_DAYS)),
+    env.DB.prepare('UPDATE customers SET last_login_at = ? WHERE id = ?').bind(loginAt, customerId),
+  ]);
   return token;
 }
 
@@ -400,60 +435,57 @@ async function recordImportedBalance(env, customerId, points) {
     .run();
 }
 
-async function sendEmail(env, { to, subject, text, html }) {
-  if (!to) return { sent: false, provider: '' };
-  const fromRaw = env.MAIL_FROM || 'WinWin <onboarding@resend.dev>';
-  const sender = parseMailFrom(fromRaw);
-  const brevoKey = env.BREVO_API_KEY;
-  if (brevoKey) {
-    try {
-      const payload = {
-        sender,
-        to: [{ email: to }],
-        subject,
-        textContent: text,
-      };
-      if (html) payload.htmlContent = html;
-      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': brevoKey,
-          accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) return { sent: true, provider: 'brevo' };
-    } catch {
-      /* fall through to Resend */
-    }
-  }
-  const apiKey = env.RESEND_API_KEY;
-  if (!apiKey) return { sent: false, provider: '' };
-  try {
-    const body = { from: fromRaw, to: [to], subject, text };
-    if (html) body.html = html;
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    return { sent: res.ok, provider: 'resend' };
-  } catch {
-    return { sent: false, provider: 'resend' };
-  }
+function emailTimeout(promise) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('EMAIL_TIMEOUT')), EMAIL_TIMEOUT_MS);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
-function parseMailFrom(from) {
-  const raw = String(from || '').trim();
-  const match = raw.match(/^(.*)<([^>]+)>\s*$/);
-  if (match) {
-    return {
-      name: match[1].trim().replace(/^["']|["']$/g, '') || 'WinWin',
-      email: match[2].trim(),
-    };
+function logEmailFailure(reason, details = {}) {
+  console.error('[WinWin email] Transactional email failed', {
+    provider: 'resend',
+    reason,
+    ...details,
+  });
+}
+
+async function sendEmail(env, { to, subject, text, html }) {
+  if (!to) return { sent: false, provider: 'resend' };
+  const apiKey = String(env.RESEND_API_KEY || '').trim();
+  const from = String(env.EMAIL_FROM || '').trim();
+  if (!apiKey || !from) {
+    logEmailFailure('configuration_missing', {
+      missingApiKey: !apiKey,
+      missingEmailFrom: !from,
+    });
+    return { sent: false, provider: 'resend' };
   }
-  return { name: 'WinWin', email: raw || 'onboarding@resend.dev' };
+
+  try {
+    const resend = new Resend(apiKey);
+    const result = await emailTimeout(resend.emails.send({
+      from,
+      to: [to],
+      subject,
+      text,
+      html,
+    }));
+    if (result.error) {
+      logEmailFailure('api_error', {
+        errorType: String(result.error.name || 'unknown').slice(0, 80),
+        statusCode: Number(result.error.statusCode) || null,
+      });
+      return { sent: false, provider: 'resend' };
+    }
+    return { sent: true, provider: 'resend' };
+  } catch (error) {
+    logEmailFailure(error?.message === 'EMAIL_TIMEOUT' ? 'timeout' : 'request_error', {
+      errorType: String(error?.name || 'unknown').slice(0, 80),
+    });
+    return { sent: false, provider: 'resend' };
+  }
 }
 
 function escapeHtml(value) {
@@ -462,6 +494,65 @@ function escapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function passwordResetCopy(customer, link) {
+  const name = escapeHtml(customer.first_name || customer.full_name || 'there');
+  const safeLink = escapeHtml(link);
+  const subject = 'Reset your WinWin password';
+  const text = `Hi ${customer.first_name || customer.full_name || 'there'},
+
+We received a request to reset your WinWin password.
+
+Reset your password: ${link}
+
+This secure link expires in 30 minutes and can only be used once.
+
+If you did not request a password reset, you can safely ignore this email. Your password will not change.
+
+The WinWin team`;
+  const html = `<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#faf6ef;font-family:Arial,Helvetica,sans-serif;color:#321a19;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#faf6ef;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #eadfd2;border-radius:18px;overflow:hidden;">
+            <tr>
+              <td align="center" style="background:#4b0d1a;padding:28px 24px;">
+                <img src="https://winwinleb.com/logo_winwin.png" width="190" alt="WinWin" style="display:block;width:190px;max-width:70%;height:auto;border:0;" />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 36px 18px;">
+                <p style="margin:0 0 12px;font-size:16px;line-height:26px;">Hi ${name},</p>
+                <h1 style="margin:0 0 16px;font-size:26px;line-height:34px;color:#321a19;">Reset your password</h1>
+                <p style="margin:0 0 26px;font-size:15px;line-height:25px;color:#6f625b;">We received a request to reset your WinWin password. Use the secure button below to choose a new one.</p>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 26px;">
+                  <tr>
+                    <td style="border-radius:10px;background:#9f1d35;">
+                      <a href="${safeLink}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;">Reset Password</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 14px;font-size:14px;line-height:23px;color:#6f625b;"><strong style="color:#321a19;">This link expires in 30 minutes</strong> and can only be used once.</p>
+                <p style="margin:0;font-size:14px;line-height:23px;color:#81776e;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:18px 36px 32px;">
+                <p style="margin:0 0 8px;font-size:12px;line-height:20px;color:#9a8d83;">If the button does not work, copy and paste this address into your browser:</p>
+                <p style="margin:0;font-size:12px;line-height:20px;word-break:break-all;"><a href="${safeLink}" style="color:#9f1d35;">${safeLink}</a></p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:18px 0 0;font-size:12px;line-height:18px;color:#9a8d83;">© WinWin · winwinleb.com</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  return { subject, text, html };
 }
 
 function welcomeBackCopy(customer) {
@@ -482,11 +573,17 @@ The WinWin team`;
   return { subject, text, html };
 }
 
-async function issueResetToken(env, customer, origin) {
+async function issueResetToken(env, customer, options = {}) {
   const raw = randomToken();
   const reset_token_hash = await sha256(raw);
-  const reset_expires_at = addHoursIso(RESET_HOURS);
+  const reset_expires_at = addMinutesIso(RESET_MINUTES);
   const auth = await getAuth(env, customer.id);
+  const previousReset = auth
+    ? {
+        hash: String(auth.reset_token_hash || ''),
+        expiresAt: String(auth.reset_expires_at || ''),
+      }
+    : { hash: '', expiresAt: '' };
   if (auth) {
     await env.DB.prepare(
       'UPDATE customer_auth SET reset_token_hash = ?, reset_expires_at = ? WHERE customer_id = ?',
@@ -501,16 +598,21 @@ async function issueResetToken(env, customer, origin) {
       .bind(randomId(), customer.id, reset_token_hash, reset_expires_at, nowIso())
       .run();
   }
-  const base = String(origin || env.APP_ORIGIN || '').replace(/\/$/, '');
+  const base = String(env.APP_ORIGIN || 'https://winwinleb.com').replace(/\/$/, '');
   const link = base ? `${base}/reset-password?token=${encodeURIComponent(raw)}` : '';
+  let delivery = { sent: false, provider: 'resend' };
   if (customer.email && isValidEmail(customer.email) && link) {
-    await sendEmail(env, {
-      to: customer.email,
-      subject: 'Reset your WinWin password',
-      text: `Hi ${customer.full_name || ''},\n\nReset your password using this link. It expires in 1 hour and can be used once:\n${link}\n\nIf you did not request this, ignore this email.\n\n– WinWin`,
-    });
+    delivery = await sendEmail(env, { to: customer.email, ...passwordResetCopy(customer, link) });
   }
-  return { raw, link };
+  if (!delivery.sent && options.restorePreviousOnFailure) {
+    await env.DB.prepare(
+      `UPDATE customer_auth SET reset_token_hash = ?, reset_expires_at = ?
+       WHERE customer_id = ? AND reset_token_hash = ?`,
+    )
+      .bind(previousReset.hash, previousReset.expiresAt, customer.id, reset_token_hash)
+      .run();
+  }
+  return { raw, link, sent: delivery.sent };
 }
 
 async function issueVerifyToken(env, customer, origin) {
@@ -582,19 +684,38 @@ async function loginCustomer(env, body, request) {
   const password = String(body.password || '');
   if (!email || !password) return json({ error: 'Invalid email or password' }, 401);
 
-  const customer = await findLoginEmail(env, email).first();
+  let customer = await findLoginEmail(env, email).first();
   if (!customer) return json({ error: 'Invalid email or password' }, 401);
 
-  if (customer.account_source === ACCOUNT_SOURCE.MIGRATED && customer.password_setup_required) {
+  const migratedSetupPending =
+    customer.account_source === ACCOUNT_SOURCE.MIGRATED && customer.password_setup_required;
+  const auth = await getAuth(env, customer.id);
+  if (migratedSetupPending && !auth?.password_hash) {
     return json({
       error: 'Please reset your password to continue.',
       code: 'MIGRATED_SETUP_REQUIRED',
     }, 403);
   }
 
-  const auth = await getAuth(env, customer.id);
   const ok = auth?.password_hash ? await verifyPassword(password, auth.password_hash) : false;
-  if (!ok) return json({ error: 'Invalid email or password' }, 401);
+  if (!ok) {
+    if (migratedSetupPending) {
+      return json({
+        error: 'Please reset your password to continue.',
+        code: 'MIGRATED_SETUP_REQUIRED',
+      }, 403);
+    }
+    return json({ error: 'Invalid email or password' }, 401);
+  }
+
+  if (migratedSetupPending) {
+    await env.DB.prepare(
+      `UPDATE customers SET password_setup_required = 0, migration_status = ?, updated_date = ? WHERE id = ?`,
+    )
+      .bind(MIGRATION_STATUS.CLAIMED, nowIso(), customer.id)
+      .run();
+    customer = await getCustomer(env, customer.id);
+  }
 
   const token = await createSession(env, customer.id);
   return json({ success: true, session_token: token, customer: publicCustomer(customer) });
@@ -679,9 +800,13 @@ async function registerCustomer(env, body, request) {
 }
 
 async function requestPasswordReset(env, body, request) {
-  const allowed = await rateLimit(env, `reset:${clientIp(request)}`, 5, 60 * 60);
   const email = normalizeEmail(body.email);
-  if (allowed && email) {
+  const emailKey = email ? await sha256(email) : 'missing';
+  const [ipAllowed, emailAllowed] = await Promise.all([
+    rateLimit(env, `reset-ip:${clientIp(request)}`, 5, 60 * 60),
+    rateLimit(env, `reset-email:${emailKey}`, 3, 60 * 60),
+  ]);
+  if (ipAllowed && emailAllowed && email) {
     const customer = await findLoginEmail(env, email).first();
     if (
       customer &&
@@ -689,10 +814,10 @@ async function requestPasswordReset(env, body, request) {
         customer.email_status === EMAIL_STATUS.UNVERIFIED ||
         customer.email_status === EMAIL_STATUS.VERIFIED)
     ) {
-      await issueResetToken(env, customer, body.app_origin);
+      await issueResetToken(env, customer, { restorePreviousOnFailure: true });
     }
   }
-  return json({ success: true });
+  return json({ success: true, message: RESET_REQUEST_MESSAGE });
 }
 
 async function resetPassword(env, body) {
@@ -707,13 +832,17 @@ async function resetPassword(env, body) {
     return json({ error: 'This setup link has expired. Request a new one.' }, 400);
   }
 
-  await env.DB.prepare(
+  const password_hash = await hashPassword(newPassword);
+  const consumed = await env.DB.prepare(
     `UPDATE customer_auth
      SET password_hash = ?, reset_token_hash = '', reset_expires_at = '', must_reset_password = 0
-     WHERE id = ?`,
+     WHERE id = ? AND reset_token_hash = ? AND reset_expires_at > ?`,
   )
-    .bind(await hashPassword(newPassword), auth.id)
+    .bind(password_hash, auth.id, reset_token_hash, nowIso())
     .run();
+  if (Number(consumed.meta?.changes || 0) !== 1) {
+    return json({ error: 'Invalid or expired reset link' }, 400);
+  }
 
   const customer = await getCustomer(env, auth.customer_id);
   const migrated = customer?.account_source === ACCOUNT_SOURCE.MIGRATED;
@@ -756,6 +885,49 @@ async function getMyAccount(env, body) {
   const authz = await requireCustomer(env, body.session_token);
   if (!authz) return json({ error: 'unauthorized' }, 401);
   return json({ success: true, customer: publicCustomer(authz.customer) });
+}
+
+async function updateMarketingPreference(env, body) {
+  const authz = await requireCustomer(env, body.session_token);
+  if (!authz) return json({ error: 'unauthorized' }, 401);
+  const wantsMarketing = body.marketing_emails_enabled === true;
+  const now = nowIso();
+  if (wantsMarketing) {
+    await env.DB.prepare(
+      `UPDATE customers SET marketing_emails_enabled = 1, marketing_subscribed_at = ?,
+       marketing_unsubscribed_at = '', marketing_prompt_shown_at = CASE WHEN marketing_prompt_shown_at = '' THEN ? ELSE marketing_prompt_shown_at END
+       WHERE id = ?`,
+    ).bind(now, now, authz.customer.id).run();
+  } else {
+    await env.DB.prepare(
+      `UPDATE customers SET marketing_emails_enabled = 0, marketing_unsubscribed_at = ? WHERE id = ?`,
+    ).bind(now, authz.customer.id).run();
+  }
+  const customer = await getCustomer(env, authz.customer.id);
+  return json({ success: true, customer: publicCustomer(customer) });
+}
+
+async function recordMarketingPrompt(env, body) {
+  const authz = await requireCustomer(env, body.session_token);
+  if (!authz) return json({ error: 'unauthorized' }, 401);
+  const action = String(body.action || 'shown');
+  const now = nowIso();
+  if (action === 'dismissed') {
+    await env.DB.prepare(
+      `UPDATE customers SET marketing_emails_enabled = 0,
+       marketing_prompt_shown_at = CASE WHEN marketing_prompt_shown_at = '' THEN ? ELSE marketing_prompt_shown_at END,
+       marketing_prompt_dismissed_at = ?
+       WHERE id = ? AND marketing_subscribed_at = '' AND marketing_unsubscribed_at = ''`,
+    ).bind(now, now, authz.customer.id).run();
+  } else {
+    await env.DB.prepare(
+      `UPDATE customers SET marketing_prompt_shown_at = ?
+       WHERE id = ? AND marketing_prompt_shown_at = '' AND marketing_subscribed_at = ''
+         AND marketing_unsubscribed_at = ''`,
+    ).bind(now, authz.customer.id).run();
+  }
+  const customer = await getCustomer(env, authz.customer.id);
+  return json({ success: true, customer: publicCustomer(customer) });
 }
 
 async function dailySignIn(env, body) {
@@ -991,7 +1163,7 @@ async function submitRecovery(env, body, request) {
     }
     // The email is already on this customer's own account. Never change the
     // email or password here — only send a reset link to that inbox.
-    await issueResetToken(env, emailOwner, body.app_origin);
+    await issueResetToken(env, emailOwner);
     const legacy = strong.length === 1 ? strong[0] : unique.length === 1 ? unique[0] : null;
     if (legacy && legacy.id !== emailOwner.id) {
       // They signed up again with a new account; queue the old one for an
@@ -1061,7 +1233,7 @@ async function submitRecovery(env, body, request) {
     .run();
 
   if (auto && customer) {
-    await applyApprovedRecovery(env, customer, requested_email, body.app_origin);
+    await applyApprovedRecovery(env, customer, requested_email);
     await env.DB.prepare('UPDATE recovery_requests SET status = ? WHERE id = ?')
       .bind(RECOVERY_STATUS.APPROVED, requestId)
       .run();
@@ -1204,7 +1376,7 @@ async function claimAccount(env, body, request) {
   return json({ success: true, session_token, customer: publicCustomer(fresh) });
 }
 
-async function applyApprovedRecovery(env, customer, requestedEmail, origin) {
+async function applyApprovedRecovery(env, customer, requestedEmail) {
   const taken = await findLoginEmail(env, requestedEmail).first();
   if (taken && taken.id !== customer.id) {
     throw new Error('That email is already used by another account.');
@@ -1216,7 +1388,7 @@ async function applyApprovedRecovery(env, customer, requestedEmail, origin) {
     .bind(requestedEmail, requestedEmail, EMAIL_STATUS.UNVERIFIED, MIGRATION_STATUS.PENDING, nowIso(), customer.id)
     .run();
   const fresh = await getCustomer(env, customer.id);
-  await issueResetToken(env, { ...fresh, email: requestedEmail }, origin);
+  await issueResetToken(env, { ...fresh, email: requestedEmail });
 }
 
 async function mergeLegacyAccount(env, legacy, target, admin) {
@@ -1334,7 +1506,7 @@ async function reviewRecovery(env, body, admin) {
     return json({ error: 'This account is already active' }, 409);
   }
   try {
-    await applyApprovedRecovery(env, customer, row.requested_email, body.app_origin);
+    await applyApprovedRecovery(env, customer, row.requested_email);
   } catch (err) {
     return json({ error: err.message }, 409);
   }
@@ -1508,7 +1680,7 @@ async function importLegacyCustomers(env, body) {
 async function adminSendPasswordSetup(env, body) {
   const customer = await getCustomer(env, String(body.customer_id || ''));
   if (!customer) return json({ error: 'Customer not found' }, 404);
-  const issued = await issueResetToken(env, customer, body.app_origin);
+  const issued = await issueResetToken(env, customer);
   return json({ success: true, setup_url: issued.link || '' });
 }
 
@@ -1584,6 +1756,8 @@ export async function handleCustomerFn(env, name, body, request) {
   if (name === 'resetPassword') return resetPassword(env, body);
   if (name === 'logoutCustomer') return logoutCustomer(env, body);
   if (name === 'getMyAccount') return getMyAccount(env, body);
+  if (name === 'updateMarketingPreference') return updateMarketingPreference(env, body);
+  if (name === 'recordMarketingPrompt') return recordMarketingPrompt(env, body);
   if (name === 'dailySignIn') return dailySignIn(env, body);
   if (name === 'reviewProfile') return reviewProfile(env, body);
   if (name === 'listAddresses') return listAddresses(env, body);

@@ -9,6 +9,7 @@ import PageNotFound from './lib/PageNotFound';
 import { CartProvider } from '@/lib/cart';
 import CartDrawer from '@/components/CartDrawer';
 import CheckoutDialog from '@/components/CheckoutDialog';
+import MarketingEmailPrompt from '@/components/MarketingEmailPrompt';
 import Home from '@/pages/Home';
 import Product from '@/pages/Product';
 import Cart from '@/pages/Cart';
@@ -32,6 +33,7 @@ const AdminPendingTransactions = lazy(() => import('@/pages/admin/AdminPendingTr
 const AdminRecovery = lazy(() => import('@/pages/admin/AdminRecovery'));
 const AdminLoyalty = lazy(() => import('@/pages/admin/AdminLoyalty'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
+const Unsubscribe = lazy(() => import('@/pages/Unsubscribe'));
 
 function PageFallback() {
   return (
@@ -60,6 +62,7 @@ function AppRoutes() {
         <Route path="/terms-and-conditions" element={<LegalPage />} />
         <Route path="/shipping-policy" element={<LegalPage />} />
         <Route path="/returns-and-refunds" element={<LegalPage />} />
+        <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/pending" element={<AdminPendingTransactions />} />
@@ -82,6 +85,7 @@ function App() {
       <CartProvider>
         <Router>
           <AppRoutes />
+          <MarketingEmailPrompt />
           <CartDrawer />
           <CheckoutDialog />
         </Router>

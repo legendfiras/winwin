@@ -88,9 +88,52 @@ CREATE TABLE IF NOT EXISTS customers (
   password_setup_required INTEGER NOT NULL DEFAULT 0,
   profile_review_required INTEGER NOT NULL DEFAULT 0,
   email_status TEXT NOT NULL DEFAULT 'unverified',
+  last_login_at TEXT NOT NULL DEFAULT '',
+  account_status TEXT NOT NULL DEFAULT 'active',
+  marketing_emails_enabled INTEGER NOT NULL DEFAULT 0,
+  marketing_prompt_shown_at TEXT NOT NULL DEFAULT '',
+  marketing_prompt_dismissed_at TEXT NOT NULL DEFAULT '',
+  marketing_subscribed_at TEXT NOT NULL DEFAULT '',
+  marketing_unsubscribed_at TEXT NOT NULL DEFAULT '',
+  last_marketing_email_sent_at TEXT NOT NULL DEFAULT '',
+  last_marketing_email_attempted_at TEXT NOT NULL DEFAULT '',
   created_date TEXT,
   updated_date TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_marketing_eligible ON customers (marketing_emails_enabled, account_status, last_login_at);
+CREATE INDEX IF NOT EXISTS idx_marketing_rotation ON customers (last_marketing_email_sent_at, id);
+
+CREATE TABLE IF NOT EXISTS marketing_campaigns (
+  id TEXT PRIMARY KEY,
+  campaign_date TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'created',
+  eligible_count INTEGER NOT NULL DEFAULT 0,
+  selected_count INTEGER NOT NULL DEFAULT 0,
+  attempted_count INTEGER NOT NULL DEFAULT 0,
+  sent_count INTEGER NOT NULL DEFAULT 0,
+  failed_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  started_at TEXT,
+  completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS marketing_send_log (
+  id TEXT PRIMARY KEY,
+  campaign_id TEXT NOT NULL,
+  campaign_date TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  recipient_email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'selected',
+  attempted_at TEXT,
+  sent_at TEXT,
+  failure_reason TEXT,
+  provider_message_id TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(campaign_id, customer_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketing_log_campaign ON marketing_send_log (campaign_id, status);
 
 CREATE TABLE IF NOT EXISTS customer_auth (
   id TEXT PRIMARY KEY,

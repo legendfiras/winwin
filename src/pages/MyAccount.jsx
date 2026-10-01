@@ -87,6 +87,26 @@ export default function MyAccount() {
     },
   });
 
+  const marketingMut = useMutation({
+    mutationFn: () => invokeCustomer('updateMarketingPreference', {
+      marketing_emails_enabled: !customerRef.current?.marketing_emails_enabled,
+    }),
+    onSuccess: (data) => {
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      if (data.customer) {
+        setCustomerState(data.customer);
+        saveCustomer(data.customer);
+      }
+      toast.success(data.customer?.marketing_emails_enabled
+        ? 'Email updates enabled.'
+        : 'Email updates disabled.');
+    },
+    onError: () => toast.error('Could not update your email preference.'),
+  });
+
   const redeemMut = useMutation({
     mutationFn: ({ product }) => redeemProductRequest(product),
     onSuccess: (data, vars) => {
@@ -406,6 +426,27 @@ export default function MyAccount() {
                   <span className="font-medium">{customer.ambassador_code}</span>
                 </div>
               )}
+              <div className="mt-4 flex items-start justify-between gap-4 border-t pt-4">
+                <div>
+                  <p className="font-medium">Email updates</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Reminders about your points, account rewards, and newly listed items. Password-reset and required account emails are always separate.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="WinWin email updates"
+                  aria-checked={Boolean(customer.marketing_emails_enabled)}
+                  disabled={marketingMut.isPending}
+                  onClick={() => marketingMut.mutate()}
+                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${customer.marketing_emails_enabled ? 'bg-primary' : 'bg-input'}`}
+                >
+                  <span
+                    className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow transition-transform ${customer.marketing_emails_enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -413,7 +454,7 @@ export default function MyAccount() {
             variant="outline"
             className="w-full"
             onClick={async () => {
-              try { await invokeCustomer('logoutCustomer'); } catch (_e) { /* ignore */ }
+              try { await invokeCustomer('logoutCustomer'); } catch { /* ignore */ }
               clearCustomer();
               navigate('/');
               window.location.reload();

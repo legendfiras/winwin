@@ -1,5 +1,6 @@
 import { corsHeaders } from '../src/lib/allowedOrigins.js';
 import { ensureCustomerSchema, handleCustomerFn, customerFromToken, saveCheckoutAddress } from './customers.js';
+import { ensureMarketingSchema, getMarketingStatus, runMarketingCampaign, unsubscribeMarketing } from './marketing.js';
 import {
   PRODUCTS_PER_PAGE,
   CATEGORY_ALIASES,
@@ -630,6 +631,23 @@ async function handleApi(request, env) {
     return json({ ok: true, products: Number(products?.n) || 0 });
   }
 
+  if (path === '/api/marketing/status' && method === 'GET') {
+    if (!(await requireAdmin(request, env))) return json({ error: 'unauthorized' }, 401);
+    return json(await getMarketingStatus(env));
+  }
+
+  if (path === '/api/marketing/run' && method === 'POST') {
+    const body = await readJson(request);
+    if (!(await requireAdminFn(env, body, request))) return json({ error: 'unauthorized' }, 401);
+    return json(await runMarketingCampaign(env));
+  }
+
+  if (path === '/api/marketing/unsubscribe' && method === 'POST') {
+    const body = await readJson(request);
+    const result = await unsubscribeMarketing(env, body.token);
+    return json(result, result.success ? 200 : 400);
+  }
+
   if (path === '/api/products' && method === 'GET') {
     if (url.searchParams.has('page') || url.searchParams.has('limit')) {
       return json(await listProductsPaged(env, url));
@@ -901,5 +919,18 @@ export default {
       return handleImage(request, env, ctx);
     }
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil((async () => {
+      try {
+        await ensureCustomerSchema(env);
+        await ensureMarketingSchema(env);
+        await runMarketingCampaign(env);
+      } catch (error) {
+        console.error('[WinWin marketing] scheduled job failed', {
+          reason: String(error?.name || 'scheduled_error').slice(0, 60),
+        });
+      }
+    })());
   },
 };

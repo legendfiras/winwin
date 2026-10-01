@@ -43,7 +43,7 @@ export default function ForgotPassword() {
           <CardContent>
             {sent ? (
               <p className="text-sm text-muted-foreground">
-                If an account exists with that email, you'll receive a password reset link shortly.
+                If an account exists for this email, a password reset link has been sent.
               </p>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">

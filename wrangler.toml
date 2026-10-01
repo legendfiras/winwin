@@ -4,6 +4,10 @@ main = "workers/api.js"
 compatibility_date = "2026-09-04"
 workers_dev = true
 
+# 07:00 UTC is 09:00 in Beirut in winter and 10:00 during daylight-saving time.
+[triggers]
+crons = ["0 7 * * *"]
+
 [build]
 command = "npm run build"
 
@@ -25,12 +29,16 @@ id = "2224090d2ada49b290b846af15271c92"
 # Custom domain winwinleb.com is currently on Cloudflare Pages (static SPA).
 # Do not add [[routes]] custom_domain here while Pages owns that hostname.
 # The frontend on winwinleb.com calls this Worker API at workers.dev.
-# Optional customer email (password setup, verification, congratulations):
-# Prefer Brevo once you have a key (wrangler secret put BREVO_API_KEY).
-# Resend is used until BREVO_API_KEY is set.
-# wrangler secret put BREVO_API_KEY
+# Customer authentication email (server-side Resend SDK):
 # wrangler secret put RESEND_API_KEY
-# wrangler secret put MAIL_FROM
-# MAIL_FROM example: WinWin <hello@winwinleb.com>
+# wrangler secret put EMAIL_FROM
+# EMAIL_FROM: WinWin <no-reply@winwinleb.com>
 # [vars]
 # APP_ORIGIN = "https://winwinleb.com"
+# MARKETING_EMAILS_ENABLED = "false"
+# MARKETING_DAILY_SEND_LIMIT = "90"
+# MARKETING_INACTIVITY_DAYS = "3"
+# MARKETING_FROM_EMAIL = "WinWin <offers@winwinleb.com>"
+# MARKETING_DRY_RUN = "true"
+# MARKETING_TEST_RECIPIENT = ""
+# Secret: wrangler secret put MARKETING_UNSUBSCRIBE_SECRET
