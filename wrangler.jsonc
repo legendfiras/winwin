@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "winwin",
+  "main": "workers/api.js",
+  "compatibility_date": "2026-09-04",
+  "workers_dev": true,
+
+  // 07:00 UTC is 09:00 in Beirut in winter and 10:00 during daylight-saving time.
+  "triggers": {
+    "crons": ["0 7 * * *"]
+  },
+
+  "build": {
+    "command": "npm run build"
+  },
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/img/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "winwin",
+      "database_id": "6bc71f7e-5f33-4627-a0e8-607aabc9c6c2"
+    }
+  ],
+
+  "kv_namespaces": [
+    {
+      "binding": "IMAGES",
+      "id": "2224090d2ada49b290b846af15271c92"
+    }
+  ],
+
+  // Custom domain winwinleb.com is currently on Cloudflare Pages (static SPA).
+  // The frontend uses the workers.dev API, so no custom-domain route belongs here.
+  // Worker secrets remain Cloudflare-managed and are intentionally absent from
+  // this source-controlled configuration.
+  "vars": {
+    "APP_ORIGIN": "https://winwinleb.com",
+    "EMAIL_FROM": "WinWin <no-reply@winwinleb.com>",
+    "MARKETING_DAILY_SEND_LIMIT": "90",
+    "MARKETING_DRY_RUN": "true",
+    "MARKETING_EMAILS_ENABLED": "false",
+    "MARKETING_FROM_EMAIL": "WinWin <offers@winwinleb.com>",
+    "MARKETING_INACTIVITY_DAYS": "3"
+  }
+}

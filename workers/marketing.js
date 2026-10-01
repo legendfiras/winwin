@@ -263,13 +263,13 @@ export async function runMarketingCampaign(env) {
   const cutoff = cutoffIso(cfg.inactivityDays, now);
   const count = Number((await eligibleCount(env, cutoff))?.n || 0);
 
-  if (cfg.testRecipient) return runTestRecipient(env, cfg, cutoff);
   const preview = await selectRecipients(env, cutoff, cfg.limit);
   if (cfg.dryRun) {
     const selected = preview.map((row) => ({ customer_id: row.id, email: row.email_normalized }));
     console.log('[WinWin marketing] dry run', { campaign_date: day, eligible: count, selected });
     return { mode: 'dry_run', campaign_date: day, eligible_count: count, selected_count: selected.length, selected };
   }
+  if (cfg.testRecipient) return runTestRecipient(env, cfg, cutoff);
   if (!env.RESEND_API_KEY || !env.MARKETING_FROM_EMAIL || !env.MARKETING_UNSUBSCRIBE_SECRET) {
     return { skipped: true, reason: 'configuration_missing' };
   }
