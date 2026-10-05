@@ -32,7 +32,10 @@ export default function AdminDashboard() {
   const productsCount = Number(productsData?.total) || asProducts(productsData).length;
   const { data: customers = [] } = useQuery({
     queryKey: ['customers'],
-    queryFn: async () => [],
+    queryFn: async () => {
+      const res = await invokeAdmin('listCustomers');
+      return res?.customers || [];
+    },
   });
   const { data: settingsData } = useQuery({
     queryKey: ['appSettings'],
@@ -53,7 +56,7 @@ export default function AdminDashboard() {
     setSaving(false);
   };
 
-  const cardMembers = customers.filter(c => c.has_winwin_card).length;
+  const cardMembers = customers.filter(c => c.card_active).length;
 
   const stats = [
     { label: 'Products', value: productsCount, icon: Package, color: 'text-primary' },

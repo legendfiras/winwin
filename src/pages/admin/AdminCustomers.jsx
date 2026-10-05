@@ -565,10 +565,13 @@ export default function AdminCustomers() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <p><span className="text-muted-foreground">Card</span></p>
                 <div className="flex justify-end">
-                  <Switch checked={c.has_winwin_card || false} onCheckedChange={(v) => toggleCard(c, v)} />
+                  <Switch checked={c.card_active || false} onCheckedChange={(v) => toggleCard(c, v)} />
                 </div>
                 <p className="text-muted-foreground">Expiry</p>
-                <p className="text-right">{c.card_expiry_date ? new Date(c.card_expiry_date).toLocaleDateString() : '—'}</p>
+                <p className="text-right">
+                  {c.card_expiry_date ? new Date(c.card_expiry_date).toLocaleDateString() : '—'}
+                  {c.card_expired && <span className="ml-1 text-destructive">(expired)</span>}
+                </p>
                 <p className="text-muted-foreground">Ambassador</p>
                 <div className="flex justify-end">
                   <Switch checked={c.is_ambassador || false} onCheckedChange={(v) => toggleAmbassador(c, v)} />
@@ -690,14 +693,14 @@ export default function AdminCustomers() {
                   </TableCell>
                   <TableCell>
                     <Switch
-                    checked={c.has_winwin_card || false}
+                    checked={c.card_active || false}
                     onCheckedChange={v => toggleCard(c, v)}
                     />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {c.card_expiry_date ? (
-                        <Badge variant={new Date(c.card_expiry_date) < new Date() ? 'destructive' : 'outline'}>
+                        <Badge variant={c.card_expired ? 'destructive' : 'outline'}>
                           {new Date(c.card_expiry_date).toLocaleDateString()}
                         </Badge>
                       ) : '-'}

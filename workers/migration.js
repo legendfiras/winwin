@@ -32,6 +32,7 @@ export const LEDGER_TYPE = {
   DAILY_LOGIN: 'DAILY_LOGIN',
   PURCHASE_REWARD: 'PURCHASE_REWARD',
   MANUAL_ADMIN: 'MANUAL_ADMIN',
+  LOYALTY_CARD_BONUS: 'LOYALTY_CARD_BONUS',
 };
 
 const EMAIL_RE = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;

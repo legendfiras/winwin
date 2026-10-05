@@ -1,5 +1,14 @@
 import { corsHeaders } from '../src/lib/allowedOrigins.js';
-import { ensureCustomerSchema, handleCustomerFn, customerFromToken, saveCheckoutAddress } from './customers.js';
+import {
+  ensureCustomerSchema,
+  handleCustomerFn,
+  customerFromToken,
+  saveCheckoutAddress,
+  activateMembershipForTransaction,
+  creditPoints,
+  getCustomer,
+  expireStaleMemberships,
+} from './customers.js';
 import { ensureMarketingSchema, getMarketingStatus, runMarketingCampaign, unsubscribeMarketing } from './marketing.js';
 import {
   PRODUCTS_PER_PAGE,
@@ -343,13 +352,74 @@ async function approveTransaction(env, body, admin) {
   if (row.status === 'APPROVED') {
     return json({ success: true, already_approved: true, transaction: txFromRow(row) });
   }
+
+  let activation = null;
+  if (row.type === 'LOYALTY_CARD') {
+    if (!row.customer_id) return json({ error: 'This loyalty order is not linked to a customer' }, 400);
+    const activationRes = await activateMembershipForTransaction(env, row, admin);
+    activation = await activationRes.json();
+    if (!activationRes.ok || activation?.error) {
+      return json({ error: activation?.error || 'Could not activate membership' }, activationRes.status || 500);
+    }
+  } else if (row.customer_id) {
+    const customer = await getCustomer(env, row.customer_id);
+    const points = Math.max(0, Math.trunc(Number(row.calculated_points) || 0));
+    if (customer && points > 0) {
+      await creditPoints(env, {
+        customer,
+        amount: points,
+        type: 'PURCHASE_REWARD',
+        reason: `Approved purchase of $${Number(row.amount_usd || 0).toFixed(2)}`,
+        source: 'PRODUCT_PURCHASE',
+        idempotency_key: `PURCHASE_REWARD:${row.id}`,
+        related_transaction_id: row.id,
+        created_by_admin_id: admin.id,
+      });
+    }
+  }
+
   await env.DB.prepare(
     'UPDATE store_transactions SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?',
   )
     .bind('APPROVED', admin.id, nowIso(), txId)
     .run();
   const updated = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(txId).first();
-  return json({ success: true, already_approved: false, transaction: txFromRow(updated) });
+  return json({ success: true, already_approved: false, transaction: txFromRow(updated), activation });
+}
+
+async function adminCreateTransaction(env, body) {
+  const customer = await env.DB.prepare('SELECT * FROM customers WHERE id = ?')
+    .bind(String(body.customer_id || ''))
+    .first();
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  const type = String(body.type || '').toUpperCase() === 'LOYALTY_CARD' ? 'LOYALTY_CARD' : 'PRODUCT_PURCHASE';
+  const amount_usd = roundMoney(Number(body.amount_usd) || (type === 'LOYALTY_CARD' ? 10 : 0));
+  if (!amount_usd || amount_usd <= 0) return json({ error: 'Enter a valid amount' }, 400);
+  const earn = await loadEarnSettings(env);
+  const calculated_points = type === 'LOYALTY_CARD' ? 100 : pointsForPurchaseUsd(amount_usd, earn);
+  const id = randomId();
+  await env.DB.prepare(
+    `INSERT INTO store_transactions (
+      id, customer_id, customer_email, customer_name, customer_phone, type, status,
+      amount_usd, discount_usd, items_json, product_ids, product_summary, calculated_points,
+      submitted_by, ambassador_code, member_price_requested, created_date, delivery_json
+    ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, '[]', '[]', ?, ?, 'ADMIN', '', 0, ?, '')`,
+  )
+    .bind(
+      id,
+      customer.id,
+      customer.email || '',
+      customer.full_name || '',
+      customer.mobile || '',
+      type,
+      amount_usd,
+      String(body.product_summary || '').trim(),
+      calculated_points,
+      nowIso(),
+    )
+    .run();
+  const row = await env.DB.prepare('SELECT * FROM store_transactions WHERE id = ?').bind(id).first();
+  return json({ success: true, transaction: txFromRow(row) }, 201);
 }
 
 async function rejectTransaction(env, body, admin) {
@@ -602,7 +672,6 @@ async function requireAdmin(request, env) {
 }
 
 function fnStub(name) {
-  if (name === 'listMemberships') return { memberships: [] };
   if (name === 'getLedger') return { entries: [] };
   if (name === 'getMyAccount') return { error: 'Customer accounts are not on Cloudflare yet' };
   if (name === 'loginCustomer' || name === 'registerCustomer') {
@@ -825,6 +894,11 @@ async function handleApi(request, env) {
     if (name === 'submitCheckout') {
       return submitCheckout(env, body);
     }
+    if (name === 'adminCreateTransaction') {
+      const admin = await requireAdminFn(env, body, request);
+      if (!admin) return json({ error: 'unauthorized' }, 401);
+      return adminCreateTransaction(env, body);
+    }
     if (name === 'listPendingTransactions') {
       const admin = await requireAdminFn(env, body, request);
       if (!admin) return json({ error: 'unauthorized' }, 401);
@@ -928,6 +1002,13 @@ export default {
         await runMarketingCampaign(env);
       } catch (error) {
         console.error('[WinWin marketing] scheduled job failed', {
+          reason: String(error?.name || 'scheduled_error').slice(0, 60),
+        });
+      }
+      try {
+        await expireStaleMemberships(env);
+      } catch (error) {
+        console.error('[WinWin loyalty] card expiry sweep failed', {
           reason: String(error?.name || 'scheduled_error').slice(0, 60),
         });
       }

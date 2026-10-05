@@ -27,6 +27,10 @@ const RESET_MINUTES = 30;
 const PBKDF2_ITERS = 100000;
 const RESET_REQUEST_MESSAGE = 'If an account exists for this email, a password reset link has been sent.';
 const EMAIL_TIMEOUT_MS = 8000;
+const MEMBERSHIP_MONTHS = 30;
+const LOYALTY_BONUS_POINTS = 100;
+const EXPIRING_SOON_DAYS = 2;
+const LEBANON_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 function json(data, status = 200) {
   return Response.json(data, {
@@ -59,6 +63,34 @@ function addMinutesIso(minutes) {
   const d = new Date();
   d.setTime(d.getTime() + minutes * 60 * 1000);
   return d.toISOString();
+}
+
+function addMonthsIso(months, from = new Date()) {
+  const d = new Date(from);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString();
+}
+
+function dateOnly(iso) {
+  if (!iso) return '';
+  return String(iso).split('T')[0];
+}
+
+// Card dates are day-granularity and the store operates on Beirut time, so
+// "today" for expiry purposes must follow Lebanon's clock, not the server's
+// UTC day — otherwise cards flip active/expired a few hours too early or late.
+function lebanonTodayParts(now = new Date()) {
+  const shifted = new Date(now.getTime() + LEBANON_OFFSET_MS);
+  return { y: shifted.getUTCFullYear(), mo: shifted.getUTCMonth() + 1, d: shifted.getUTCDate() };
+}
+
+function calendarDaysUntil(value, now = new Date()) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const today = lebanonTodayParts(now);
+  const start = Date.UTC(today.y, today.mo - 1, today.d);
+  const end = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Math.round((end - start) / 86400000);
 }
 
 function randomId() {
@@ -148,6 +180,7 @@ export async function ensureCustomerSchema(env) {
       card_number TEXT,
       card_purchase_date TEXT,
       card_expiry_date TEXT,
+      card_renewal_reminder_sent INTEGER NOT NULL DEFAULT 0,
       draw_entries INTEGER NOT NULL DEFAULT 0,
       last_signin_date TEXT,
       ambassador_code TEXT,
@@ -259,6 +292,7 @@ export async function ensureCustomerSchema(env) {
     "ALTER TABLE customers ADD COLUMN marketing_unsubscribed_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE customers ADD COLUMN last_marketing_email_sent_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE customers ADD COLUMN last_marketing_email_attempted_at TEXT NOT NULL DEFAULT ''",
+    'ALTER TABLE customers ADD COLUMN card_renewal_reminder_sent INTEGER NOT NULL DEFAULT 0',
   ];
   for (const sql of alters) {
     try {
@@ -287,10 +321,9 @@ export async function ensureCustomerSchema(env) {
 function publicCustomer(row, extras = {}) {
   if (!row) return null;
   const now = new Date();
-  const expiry = row.card_expiry_date ? String(row.card_expiry_date).split('T')[0] : '';
-  const today = todayStr(now);
-  const card_active = Boolean(row.has_winwin_card) && expiry && expiry >= today;
-  const days_left = expiry ? Math.ceil((new Date(`${expiry}T23:59:59.000Z`).getTime() - now.getTime()) / 86400000) : 0;
+  const days_left = calendarDaysUntil(row.card_expiry_date, now);
+  const stillValid = days_left != null && days_left >= 0;
+  const card_active = Boolean(row.has_winwin_card) && stillValid;
   return {
     id: row.id,
     legacy_user_id: row.legacy_user_id || '',
@@ -306,9 +339,9 @@ function publicCustomer(row, extras = {}) {
     card_purchase_date: row.card_purchase_date || '',
     card_expiry_date: row.card_expiry_date || '',
     card_active,
-    card_days_left: days_left,
-    card_expiring_soon: card_active && days_left > 0 && days_left <= 2,
-    card_expired: Boolean(expiry) && !card_active,
+    card_days_left: stillValid ? days_left : 0,
+    card_expiring_soon: card_active && days_left > 0 && days_left <= EXPIRING_SOON_DAYS,
+    card_expired: Boolean(row.card_expiry_date) && !card_active,
     draw_entries: Number(row.draw_entries) || 0,
     last_signin_date: row.last_signin_date || '',
     ambassador_code: row.ambassador_code || '',
@@ -326,12 +359,12 @@ function publicCustomer(row, extras = {}) {
     marketing_prompt_dismissed_at: row.marketing_prompt_dismissed_at || '',
     marketing_subscribed_at: row.marketing_subscribed_at || '',
     marketing_unsubscribed_at: row.marketing_unsubscribed_at || '',
-    server_today: today,
+    server_today: todayStr(now),
     ...extras,
   };
 }
 
-async function getCustomer(env, id) {
+export async function getCustomer(env, id) {
   return env.DB.prepare('SELECT * FROM customers WHERE id = ?').bind(id).first();
 }
 
@@ -376,7 +409,7 @@ async function requireAdmin(env, body, request) {
     .first();
 }
 
-async function creditPoints(env, opts) {
+export async function creditPoints(env, opts) {
   const existing = await env.DB.prepare('SELECT * FROM points_ledger WHERE idempotency_key = ?')
     .bind(opts.idempotency_key)
     .first();
@@ -1564,9 +1597,17 @@ async function adminUpdateCustomer(env, body) {
   const country = body.country != null ? String(body.country).trim() : customer.country;
   const ambassador_code = body.ambassador_code != null ? String(body.ambassador_code).trim() : customer.ambassador_code;
   const card_number = body.card_number != null ? String(body.card_number).trim() : customer.card_number;
+  const is_ambassador = body.is_ambassador != null ? (body.is_ambassador ? 1 : 0) : (customer.is_ambassador ? 1 : 0);
+  const draw_entries = body.draw_entries != null
+    ? Math.max(0, Math.round(Number(body.draw_entries) || 0))
+    : Number(customer.draw_entries) || 0;
+  const wallet_balance = body.wallet_balance != null
+    ? Math.max(0, Number(body.wallet_balance) || 0)
+    : Number(customer.wallet_balance) || 0;
   await env.DB.prepare(
     `UPDATE customers SET full_name = ?, first_name = ?, last_name = ?, mobile = ?, mobile_normalized = ?,
-      country = ?, ambassador_code = ?, card_number = ?, updated_date = ? WHERE id = ?`,
+      country = ?, ambassador_code = ?, card_number = ?, is_ambassador = ?, draw_entries = ?, wallet_balance = ?,
+      updated_date = ? WHERE id = ?`,
   )
     .bind(
       names.full_name,
@@ -1577,6 +1618,9 @@ async function adminUpdateCustomer(env, body) {
       country,
       ambassador_code,
       card_number,
+      is_ambassador,
+      draw_entries,
+      wallet_balance,
       nowIso(),
       customer.id,
     )
@@ -1682,6 +1726,264 @@ async function adminSendPasswordSetup(env, body) {
   if (!customer) return json({ error: 'Customer not found' }, 404);
   const issued = await issueResetToken(env, customer);
   return json({ success: true, setup_url: issued.link || '' });
+}
+
+function classifyMembership(latest, now = new Date()) {
+  if (!latest) return { status: 'NONE', days_remaining: 0, active: false };
+  if (String(latest.status || '').toUpperCase() === 'DEACTIVATED') {
+    return { status: 'EXPIRED', days_remaining: 0, active: false };
+  }
+  const days_remaining = calendarDaysUntil(latest.expires_at, now);
+  if (days_remaining == null) return { status: 'NONE', days_remaining: 0, active: false };
+  if (days_remaining < 0) return { status: 'EXPIRED', days_remaining: 0, active: false };
+  if (days_remaining <= EXPIRING_SOON_DAYS) {
+    return { status: 'EXPIRING_SOON', days_remaining, active: true };
+  }
+  return { status: 'ACTIVE', days_remaining, active: true };
+}
+
+async function listMemberships(env, body) {
+  const now = new Date();
+  const { results: customers } = await env.DB.prepare(
+    'SELECT * FROM customers ORDER BY created_date DESC LIMIT 5000',
+  ).all();
+  const { results: memberships } = await env.DB.prepare('SELECT * FROM loyalty_memberships').all();
+  const byCustomer = {};
+  for (const membership of memberships || []) {
+    if (!byCustomer[membership.customer_id]) byCustomer[membership.customer_id] = [];
+    byCustomer[membership.customer_id].push(membership);
+  }
+  const rows = (customers || []).map((customer) => {
+    const list = byCustomer[customer.id] || [];
+    list.sort((a, b) => String(b.activated_at || '').localeCompare(String(a.activated_at || '')));
+    let latest = list[0] || null;
+    if (!latest && (customer.has_winwin_card || customer.card_expiry_date)) {
+      latest = {
+        id: '',
+        customer_id: customer.id,
+        status: customer.has_winwin_card ? 'ACTIVE' : 'EXPIRED',
+        activated_at: customer.card_purchase_date || '',
+        expires_at: customer.card_expiry_date || '',
+        source: 'CUSTOMER',
+      };
+    }
+    const classified = classifyMembership(latest, now);
+    return {
+      customer: publicCustomer(customer),
+      membership: latest,
+      status: classified.status,
+      days_remaining: classified.active ? classified.days_remaining : 0,
+      activated_at: latest?.activated_at || customer.card_purchase_date || null,
+      expires_at: latest?.expires_at || customer.card_expiry_date || null,
+    };
+  });
+  const filter = String(body.filter || 'all').toUpperCase();
+  const filterStatus = filter === 'NO_MEMBERSHIP' ? 'NONE' : filter;
+  const filtered = !filter || filter === 'ALL' ? rows : rows.filter((row) => row.status === filterStatus);
+  return json({ success: true, server_today: todayStr(now), rows: filtered });
+}
+
+function membershipDate(value) {
+  if (!value) return null;
+  const iso = String(value).split('T')[0];
+  const date = new Date(`${iso}T23:59:59.999Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+async function deactivateActiveMemberships(env, customerId) {
+  await env.DB.prepare(
+    `UPDATE loyalty_memberships SET status = 'DEACTIVATED' WHERE customer_id = ? AND status = 'ACTIVE'`,
+  )
+    .bind(customerId)
+    .run();
+}
+
+async function activationBaseDate(env, customer, now) {
+  let base = now;
+  const customerExpiry = membershipDate(customer.card_expiry_date);
+  if (customerExpiry && customerExpiry.getTime() > base.getTime()) base = customerExpiry;
+  const { results } = await env.DB.prepare(
+    `SELECT expires_at FROM loyalty_memberships WHERE customer_id = ? AND status = 'ACTIVE'`,
+  )
+    .bind(customer.id)
+    .all();
+  for (const row of results || []) {
+    const expiry = membershipDate(row.expires_at);
+    if (expiry && expiry.getTime() > base.getTime()) base = expiry;
+  }
+  return base;
+}
+
+async function activateMembership(env, body, admin) {
+  const customer = await getCustomer(env, String(body.customer_id || ''));
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  const relatedTransactionId = String(body.related_transaction_id || '');
+  if (relatedTransactionId) {
+    const existing = await env.DB.prepare('SELECT * FROM loyalty_memberships WHERE related_transaction_id = ?')
+      .bind(relatedTransactionId)
+      .first();
+    if (existing) {
+      const purchaseDate = dateOnly(existing.activated_at) || existing.activated_at;
+      const expiryDate = dateOnly(existing.expires_at) || existing.expires_at;
+      await env.DB.prepare(
+        `UPDATE customers SET has_winwin_card = 1, card_purchase_date = ?, card_expiry_date = ?,
+         card_renewal_reminder_sent = 0, updated_date = ? WHERE id = ?`,
+      )
+        .bind(purchaseDate, expiryDate, nowIso(), customer.id)
+        .run();
+      const currentCustomer = await getCustomer(env, customer.id);
+      const credited = await creditPoints(env, {
+        customer: currentCustomer,
+        amount: LOYALTY_BONUS_POINTS,
+        type: LEDGER_TYPE.LOYALTY_CARD_BONUS,
+        reason: 'WinWin loyalty card activation bonus',
+        source: String(body.source || 'ORDER_APPROVAL'),
+        idempotency_key: `LOYALTY_CARD_BONUS:${existing.id}`,
+        related_transaction_id: relatedTransactionId,
+        created_by_admin_id: admin?.id || '',
+      });
+      return json({
+        success: true,
+        already_activated: true,
+        membership: existing,
+        customer: publicCustomer(credited.customer),
+      });
+    }
+  }
+  const now = new Date();
+  const baseDate = await activationBaseDate(env, customer, now);
+  const expiresAt = addMonthsIso(MEMBERSHIP_MONTHS, baseDate);
+  const membershipId = randomId();
+  const source = String(body.source || 'MANUAL');
+  await deactivateActiveMemberships(env, customer.id);
+  await env.DB.prepare(
+    `INSERT INTO loyalty_memberships (id, customer_id, status, activated_at, expires_at, source, approved_by, related_transaction_id)
+     VALUES (?, ?, 'ACTIVE', ?, ?, ?, ?, ?)`,
+  )
+    .bind(membershipId, customer.id, now.toISOString(), expiresAt, source, admin?.id || '', relatedTransactionId)
+    .run();
+  await env.DB.prepare(
+    `UPDATE customers SET has_winwin_card = 1, card_purchase_date = ?, card_expiry_date = ?,
+     card_renewal_reminder_sent = 0, updated_date = ? WHERE id = ?`,
+  )
+    .bind(todayStr(now), dateOnly(expiresAt), nowIso(), customer.id)
+    .run();
+  const updated = await getCustomer(env, customer.id);
+  let resultCustomer = updated;
+  if (body.award_bonus !== false) {
+    const credited = await creditPoints(env, {
+      customer: updated,
+      amount: LOYALTY_BONUS_POINTS,
+      type: LEDGER_TYPE.LOYALTY_CARD_BONUS,
+      reason: 'WinWin loyalty card activation bonus',
+      source,
+      idempotency_key: `LOYALTY_CARD_BONUS:${membershipId}`,
+      related_transaction_id: relatedTransactionId || membershipId,
+      created_by_admin_id: admin?.id || '',
+    });
+    resultCustomer = credited.customer;
+  }
+  const membership = await env.DB.prepare('SELECT * FROM loyalty_memberships WHERE id = ?').bind(membershipId).first();
+  return json({ success: true, membership, customer: publicCustomer(resultCustomer) });
+}
+
+export async function activateMembershipForTransaction(env, transaction, admin) {
+  return activateMembership(
+    env,
+    {
+      customer_id: transaction.customer_id,
+      related_transaction_id: transaction.id,
+      source: 'ORDER_APPROVAL',
+      award_bonus: true,
+    },
+    admin,
+  );
+}
+
+async function deactivateMembership(env, body) {
+  const customer = await getCustomer(env, String(body.customer_id || ''));
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  await deactivateActiveMemberships(env, customer.id);
+  if (body.membership_id) {
+    await env.DB.prepare('UPDATE loyalty_memberships SET status = ? WHERE id = ?')
+      .bind('DEACTIVATED', String(body.membership_id))
+      .run();
+  }
+  await env.DB.prepare('UPDATE customers SET has_winwin_card = 0, updated_date = ? WHERE id = ?')
+    .bind(nowIso(), customer.id)
+    .run();
+  const updated = await getCustomer(env, customer.id);
+  return json({ success: true, customer: publicCustomer(updated) });
+}
+
+async function updateMembershipExpiry(env, body) {
+  const expiresAt = String(body.expires_at || '').trim();
+  const activatedAt = String(body.activated_at || '').trim();
+  if (!expiresAt) return json({ error: 'Missing expiry date' }, 400);
+  let membership = body.membership_id
+    ? await env.DB.prepare('SELECT * FROM loyalty_memberships WHERE id = ?').bind(String(body.membership_id)).first()
+    : null;
+  if (!membership && body.customer_id) {
+    const { results } = await env.DB.prepare(
+      'SELECT * FROM loyalty_memberships WHERE customer_id = ? ORDER BY activated_at DESC',
+    )
+      .bind(String(body.customer_id))
+      .all();
+    membership = (results || []).find((row) => row.status === 'ACTIVE') || results?.[0] || null;
+  }
+  const expiryIso = expiresAt.length <= 10 ? `${expiresAt}T23:59:59.000Z` : expiresAt;
+  const activatedIso = activatedAt
+    ? (activatedAt.length <= 10 ? `${activatedAt}T00:00:00.000Z` : activatedAt)
+    : membership?.activated_at || nowIso();
+  const expired = new Date(expiryIso).getTime() <= Date.now();
+  const status = expired ? 'EXPIRED' : 'ACTIVE';
+  if (!membership) {
+    const customerId = String(body.customer_id || '');
+    if (!customerId) return json({ error: 'Membership not found' }, 404);
+    const id = randomId();
+    await env.DB.prepare(
+      `INSERT INTO loyalty_memberships (id, customer_id, status, activated_at, expires_at, source, approved_by, related_transaction_id)
+       VALUES (?, ?, ?, ?, ?, 'MANUAL', '', '')`,
+    )
+      .bind(id, customerId, status, activatedIso, expiryIso)
+      .run();
+    membership = await env.DB.prepare('SELECT * FROM loyalty_memberships WHERE id = ?').bind(id).first();
+  } else {
+    await env.DB.prepare('UPDATE loyalty_memberships SET expires_at = ?, activated_at = ?, status = ? WHERE id = ?')
+      .bind(expiryIso, activatedIso, status, membership.id)
+      .run();
+    membership = await env.DB.prepare('SELECT * FROM loyalty_memberships WHERE id = ?').bind(membership.id).first();
+  }
+  await env.DB.prepare(
+    `UPDATE customers SET has_winwin_card = ?, card_purchase_date = ?, card_expiry_date = ?,
+     card_renewal_reminder_sent = 0, updated_date = ? WHERE id = ?`,
+  )
+    .bind(expired ? 0 : 1, dateOnly(activatedIso), dateOnly(expiryIso), nowIso(), membership.customer_id)
+    .run();
+  const customer = await getCustomer(env, membership.customer_id);
+  return json({ success: true, membership, customer: publicCustomer(customer) });
+}
+
+// Daily cron safety net: flips the WinWin Card flag off for anyone whose
+// expiry date has already passed, even if nobody ever called deactivateMembership
+// (e.g. imported legacy rows, or admins editing dates without going through
+// the membership endpoints). Without this the "has_winwin_card" switch can
+// stay ON indefinitely after a card expires.
+export async function expireStaleMemberships(env) {
+  const today = todayStr();
+  await env.DB.prepare(
+    `UPDATE loyalty_memberships SET status = 'EXPIRED'
+     WHERE status = 'ACTIVE' AND expires_at IS NOT NULL AND expires_at != '' AND substr(expires_at, 1, 10) < ?`,
+  )
+    .bind(today)
+    .run();
+  const result = await env.DB.prepare(
+    `UPDATE customers SET has_winwin_card = 0, updated_date = ?
+     WHERE has_winwin_card = 1 AND card_expiry_date IS NOT NULL AND card_expiry_date != '' AND substr(card_expiry_date, 1, 10) < ?`,
+  )
+    .bind(nowIso(), today)
+    .run();
+  return { expired: result?.meta?.changes || 0 };
 }
 
 export async function customerFromToken(env, token) {
@@ -1802,6 +2104,23 @@ export async function handleCustomerFn(env, name, body, request) {
   if (name === 'adminSendPasswordSetup') {
     if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
     return adminSendPasswordSetup(env, body);
+  }
+  if (name === 'listMemberships') {
+    if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
+    return listMemberships(env, body);
+  }
+  if (name === 'activateMembership') {
+    const admin = await requireAdmin(env, body, request);
+    if (!admin) return json({ error: 'unauthorized' }, 401);
+    return activateMembership(env, body, admin);
+  }
+  if (name === 'deactivateMembership') {
+    if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
+    return deactivateMembership(env, body);
+  }
+  if (name === 'updateMembershipExpiry') {
+    if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
+    return updateMembershipExpiry(env, body);
   }
   return null;
 }
