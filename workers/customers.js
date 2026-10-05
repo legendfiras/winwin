@@ -1552,6 +1552,9 @@ async function reviewRecovery(env, body, admin) {
 }
 
 async function listCustomers(env) {
+  // Self-heal before reading: don't make admins wait for the next cron tick
+  // to see an expired card's has_winwin_card flag flip off.
+  await expireStaleMemberships(env);
   const { results } = await env.DB.prepare('SELECT * FROM customers ORDER BY created_date DESC LIMIT 2000').all();
   return json({ success: true, customers: (results || []).map((row) => publicCustomer(row)) });
 }
@@ -1765,6 +1768,7 @@ function classifyMembership(latest, now = new Date()) {
 }
 
 async function listMemberships(env, body) {
+  await expireStaleMemberships(env);
   const now = new Date();
   const { results: customers } = await env.DB.prepare(
     'SELECT * FROM customers ORDER BY created_date DESC LIMIT 5000',

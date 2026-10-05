@@ -85,7 +85,7 @@ export default function AdminRecovery() {
               ) : null}
               {row.customer ? (
                 <p className="text-sm">
-                  Points: {row.customer.points} · Card: {row.customer.has_winwin_card ? 'Yes' : 'No'}
+                  Points: {row.customer.points} · Card: {row.customer.card_active ? 'Yes' : 'No'}
                 </p>
               ) : null}
               <div className="flex gap-2 flex-wrap">
@@ -127,7 +127,7 @@ export default function AdminRecovery() {
                 <>
                   <p>Name: {detail.customer.full_name}</p>
                   <p>Points: {detail.customer.points}</p>
-                  <p>Loyalty: {detail.customer.has_winwin_card ? `Card ${detail.customer.card_number || ''}` : 'None'}</p>
+                  <p>Loyalty: {detail.customer.card_active ? `Card ${detail.customer.card_number || ''}` : 'None'}</p>
                   <p>Migration: {detail.customer.migration_status}</p>
                 </>
               ) : null}
