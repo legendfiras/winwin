@@ -81,7 +81,11 @@ export default function AdminCustomers() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: () => Promise.reject(new Error('Customer accounts are not stored on Cloudflare yet')),
+    mutationFn: async (id) => {
+      const data = await invokeAdmin('deleteCustomer', { customer_id: id });
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ['customers'] });
       const previous = qc.getQueryData(['customers']);
@@ -89,9 +93,9 @@ export default function AdminCustomers() {
       setDeleteCustomer(null);
       return { previous };
     },
-    onError: (_err, _vars, context) => {
+    onError: (err, _vars, context) => {
       if (context?.previous) qc.setQueryData(['customers'], context.previous);
-      toast.error('Delete failed.');
+      toast.error(err?.message || 'Delete failed.');
     },
     onSuccess: () => { toast.success('Customer deleted.'); },
     onSettled: () => { qc.invalidateQueries({ queryKey: ['customers'] }); },

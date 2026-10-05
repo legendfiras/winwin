@@ -1629,6 +1629,28 @@ async function adminUpdateCustomer(env, body) {
   return json({ success: true, customer: publicCustomer(fresh) });
 }
 
+// Hard delete: removes the account and everything scoped to it (auth,
+// sessions, points ledger, loyalty memberships, saved addresses, recovery
+// requests). Irreversible. Store orders/transactions are left untouched —
+// they're business records, not account data, and already carry a copy of
+// the customer's name/email/phone so they stay readable after this.
+async function deleteCustomer(env, body) {
+  const customerId = String(body.customer_id || body.id || '');
+  if (!customerId) return json({ error: 'Missing customer_id' }, 400);
+  const customer = await getCustomer(env, customerId);
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM customer_auth WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM customer_sessions WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM points_ledger WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM loyalty_memberships WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM customer_addresses WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM recovery_requests WHERE customer_id = ?').bind(customerId),
+    env.DB.prepare('DELETE FROM customers WHERE id = ?').bind(customerId),
+  ]);
+  return json({ success: true });
+}
+
 async function importLegacyCustomers(env, body) {
   const records = (Array.isArray(body.customers) ? body.customers : [])
     .map(stripLegacySecrets)
@@ -2075,6 +2097,10 @@ export async function handleCustomerFn(env, name, body, request) {
   if (name === 'adminUpdateCustomer') {
     if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
     return adminUpdateCustomer(env, body);
+  }
+  if (name === 'deleteCustomer') {
+    if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);
+    return deleteCustomer(env, body);
   }
   if (name === 'getLedger') {
     const admin = await requireAdmin(env, body, request);
