@@ -3,7 +3,7 @@ import bcrypt from 'npm:bcryptjs@2.4.3';
 export const SIGNUP_POINTS = 10;
 export const DAILY_POINTS = 2;
 export const LOYALTY_BONUS_POINTS = 100;
-export const MEMBERSHIP_MONTHS = 30;
+export const MEMBERSHIP_DAYS = 30;
 export const SESSION_DAYS = 30;
 export const RESET_HOURS = 1;
 export const BCRYPT_ROUNDS = 10;
@@ -58,10 +58,15 @@ export function addHoursIso(hours: number, from = new Date()) {
   return d.toISOString();
 }
 
-export function addMonthsIso(months: number, from = new Date()) {
-  const d = new Date(from);
-  d.setMonth(d.getMonth() + months);
-  return d.toISOString();
+export function addCalendarDays(day: string, days: number) {
+  const match = String(day || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '';
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  date.setUTCDate(date.getUTCDate() + days);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${dayOfMonth}`;
 }
 
 export function dateOnly(iso?: string | null) {
@@ -282,7 +287,8 @@ export async function activateMembershipRecord(db: any, opts: {
   awardBonus?: boolean;
 }) {
   const now = opts.activated_at || new Date();
-  const expires_at = opts.expires_at || addMonthsIso(MEMBERSHIP_MONTHS, now);
+  const expiryDay = addCalendarDays(todayStr(now), MEMBERSHIP_DAYS);
+  const expires_at = opts.expires_at || `${expiryDay}T12:00:00.000Z`;
   const previous = await db.entities.LoyaltyMembership.filter({ customer_id: opts.customer.id, status: 'ACTIVE' });
   for (const m of previous || []) {
     await db.entities.LoyaltyMembership.update(m.id, { status: 'DEACTIVATED' });

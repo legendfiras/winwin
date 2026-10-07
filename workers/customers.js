@@ -19,6 +19,7 @@ import {
   looksPlaceholderAmbassador,
   stripLegacySecrets,
 } from './migration.js';
+import { membershipExpiryDay, membershipExpiryIso } from '../src/lib/membershipTerm.js';
 
 const SIGNUP_POINTS = 10;
 const DAILY_POINTS = 2;
@@ -27,7 +28,6 @@ const RESET_MINUTES = 30;
 const PBKDF2_ITERS = 100000;
 const RESET_REQUEST_MESSAGE = 'If an account exists for this email, a password reset link has been sent.';
 const EMAIL_TIMEOUT_MS = 8000;
-const MEMBERSHIP_MONTHS = 30;
 const LOYALTY_BONUS_POINTS = 100;
 const EXPIRING_SOON_DAYS = 2;
 const LEBANON_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -62,12 +62,6 @@ function addHoursIso(hours) {
 function addMinutesIso(minutes) {
   const d = new Date();
   d.setTime(d.getTime() + minutes * 60 * 1000);
-  return d.toISOString();
-}
-
-function addMonthsIso(months, from = new Date()) {
-  const d = new Date(from);
-  d.setMonth(d.getMonth() + months);
   return d.toISOString();
 }
 
@@ -1809,35 +1803,12 @@ async function listMemberships(env, body) {
   return json({ success: true, server_today: todayStr(now), rows: filtered });
 }
 
-function membershipDate(value) {
-  if (!value) return null;
-  const iso = String(value).split('T')[0];
-  const date = new Date(`${iso}T23:59:59.999Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 async function deactivateActiveMemberships(env, customerId) {
   await env.DB.prepare(
     `UPDATE loyalty_memberships SET status = 'DEACTIVATED' WHERE customer_id = ? AND status = 'ACTIVE'`,
   )
     .bind(customerId)
     .run();
-}
-
-async function activationBaseDate(env, customer, now) {
-  let base = now;
-  const customerExpiry = membershipDate(customer.card_expiry_date);
-  if (customerExpiry && customerExpiry.getTime() > base.getTime()) base = customerExpiry;
-  const { results } = await env.DB.prepare(
-    `SELECT expires_at FROM loyalty_memberships WHERE customer_id = ? AND status = 'ACTIVE'`,
-  )
-    .bind(customer.id)
-    .all();
-  for (const row of results || []) {
-    const expiry = membershipDate(row.expires_at);
-    if (expiry && expiry.getTime() > base.getTime()) base = expiry;
-  }
-  return base;
 }
 
 async function activateMembership(env, body, admin) {
@@ -1877,8 +1848,8 @@ async function activateMembership(env, body, admin) {
     }
   }
   const now = new Date();
-  const baseDate = await activationBaseDate(env, customer, now);
-  const expiresAt = addMonthsIso(MEMBERSHIP_MONTHS, baseDate);
+  const expiryDay = membershipExpiryDay(now);
+  const expiresAt = membershipExpiryIso(now);
   const membershipId = randomId();
   const source = String(body.source || 'MANUAL');
   await deactivateActiveMemberships(env, customer.id);
@@ -1892,7 +1863,7 @@ async function activateMembership(env, body, admin) {
     `UPDATE customers SET has_winwin_card = 1, card_purchase_date = ?, card_expiry_date = ?,
      card_renewal_reminder_sent = 0, updated_date = ? WHERE id = ?`,
   )
-    .bind(todayStr(now), dateOnly(expiresAt), nowIso(), customer.id)
+    .bind(todayStr(now), expiryDay, nowIso(), customer.id)
     .run();
   const updated = await getCustomer(env, customer.id);
   let resultCustomer = updated;

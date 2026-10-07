@@ -124,6 +124,7 @@ export default function AdminPendingTransactions() {
               {detail.delivery ? (
                 <p><strong>Delivery:</strong> {[detail.delivery.governorate, detail.delivery.street, detail.delivery.building, detail.delivery.floor].filter(Boolean).join(', ')}{detail.delivery.instructions ? ` — ${detail.delivery.instructions}` : ''}</p>
               ) : null}
+              {detail.giveaway_code ? <p><strong>Giveaway code:</strong> {detail.giveaway_code}</p> : null}
               <p><strong>Order ID:</strong> {detail.display_id || detail.id}</p>
               <p><strong>Type:</strong> {detail.type}</p>
               <p><strong>Amount:</strong> ${Number(detail.amount_usd || 0).toFixed(2)}</p>

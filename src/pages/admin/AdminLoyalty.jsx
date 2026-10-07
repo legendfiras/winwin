@@ -37,7 +37,7 @@ export default function AdminLoyalty() {
     mutationFn: (customer_id) => invokeAdmin('activateMembership', { customer_id }),
     onSuccess: (data) => {
       if (data?.error) return toast.error(data.error);
-      toast.success('Membership activated for 30 months. +100 points logged.');
+      toast.success('Membership activated for 30 days. +100 points logged.');
       qc.invalidateQueries({ queryKey: ['memberships'] });
       qc.invalidateQueries({ queryKey: ['customers'] });
     },
@@ -95,7 +95,7 @@ export default function AdminLoyalty() {
                 </p>
                 <div className="flex gap-2 flex-wrap">
                   {(row.status === 'NONE' || row.status === 'EXPIRED') && (
-                    <Button size="sm" onClick={() => activateMut.mutate(c.id)}>Activate (30 months)</Button>
+                    <Button size="sm" onClick={() => activateMut.mutate(c.id)}>Activate (30 days)</Button>
                   )}
                   {(row.status === 'ACTIVE' || row.status === 'EXPIRING_SOON') && (
                     <Button size="sm" variant="destructive" onClick={() => deactivateMut.mutate(c.id)}>Deactivate</Button>

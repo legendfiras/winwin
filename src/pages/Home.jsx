@@ -65,6 +65,11 @@ export default function Home() {
   }, [qParam]);
 
   useEffect(() => {
+    if (window.location.hash !== '#shop') return;
+    document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  useEffect(() => {
     if (!getSessionToken()) return;
     invokeCustomer('getMyAccount').then((data) => {
       if (data?.customer) setAccount(data.customer);

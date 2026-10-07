@@ -10,6 +10,7 @@ import { CartProvider } from '@/lib/cart';
 import CartDrawer from '@/components/CartDrawer';
 import CheckoutDialog from '@/components/CheckoutDialog';
 import MarketingEmailPrompt from '@/components/MarketingEmailPrompt';
+import PhoneGiveawayPopup from '@/components/PhoneGiveawayPopup';
 import Home from '@/pages/Home';
 import Product from '@/pages/Product';
 import Cart from '@/pages/Cart';
@@ -86,6 +87,7 @@ function App() {
         <Router>
           <AppRoutes />
           <MarketingEmailPrompt />
+          <PhoneGiveawayPopup />
           <CartDrawer />
           <CheckoutDialog />
         </Router>

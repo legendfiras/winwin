@@ -108,7 +108,7 @@ export default function AdminCustomers() {
         toast.error(data.error);
         return;
       }
-      toast.success(value ? 'Card activated for 30 months. +100 points logged.' : 'Card deactivated.');
+      toast.success(value ? 'Card activated for 30 days. +100 points logged.' : 'Card deactivated.');
       qc.invalidateQueries({ queryKey: ['customers'] });
     });
   };

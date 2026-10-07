@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { MessageCircle } from 'lucide-react';
 import { useCart } from '@/lib/cart';
 import { getCustomer, getSessionToken, isCardActive, invokeCustomer, invokePublic } from '@/lib/customerAuth';
+import { giveawayCheckoutNotice, giveawayEligibleSubtotal } from '@/lib/giveaway';
 import { cartTotals, formatMoney, orderDisplayId } from '@/lib/pricing';
 import { cartWhatsAppMessage, whatsappUrl } from '@/lib/whatsapp';
 import { useSettings } from '@/lib/useSettings';
@@ -46,7 +47,13 @@ export default function CheckoutDialog() {
   const [addresses, setAddresses] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [saveAddress, setSaveAddress] = useState(true);
+  const [giveawayCode, setGiveawayCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const giveawayNotice = giveawayCheckoutNotice(giveawayCode, {
+    itemSubtotal: totals.subtotal,
+    discount: totals.discount,
+    deliveryFee: 0,
+  });
 
   useEffect(() => {
     if (!checkoutOpen) return;
@@ -116,6 +123,7 @@ export default function CheckoutDialog() {
         member_price_requested: hasCard,
         session_token: getSessionToken() || '',
         save_address: Boolean(getSessionToken() && saveAddress),
+        giveaway_code: giveawayCode,
         address: {
           ...address,
           id: selectedId && selectedId !== 'new' ? selectedId : '',
@@ -130,15 +138,23 @@ export default function CheckoutDialog() {
       const tx = data.transaction;
       const message = cartWhatsAppMessage(tx.items || items, {
         subtotal: tx.amount_usd,
+        discount: tx.discount_usd,
         total: tx.amount_usd,
         orderId: tx.id,
         customerName: name,
         ambassadorCode: customer?.ambassador_code,
         hasCard: false,
         delivery: tx.delivery || address,
+        giveawayCode: tx.giveaway_code || giveawayCode,
+        eligibleSubtotal: giveawayEligibleSubtotal({
+          itemSubtotal: tx.amount_usd,
+          discount: tx.discount_usd,
+          deliveryFee: Number(tx.delivery?.fee || tx.delivery_fee || 0),
+        }),
       });
       window.open(whatsappUrl(waNumber, message), '_blank');
       clear();
+      setGiveawayCode('');
       setCheckoutOpen(false);
       toast.success(`Order ${orderDisplayId(tx.id)} sent for approval`);
     } catch (err) {
@@ -224,6 +240,27 @@ export default function CheckoutDialog() {
           <div className="space-y-2">
             <Label htmlFor="checkout-notes">Delivery instructions</Label>
             <Textarea id="checkout-notes" value={address.instructions} onChange={(e) => setAddress({ ...address, instructions: e.target.value })} rows={2} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="checkout-giveaway">Giveaway code</Label>
+            <Input
+              id="checkout-giveaway"
+              value={giveawayCode}
+              onChange={(e) => setGiveawayCode(e.target.value)}
+              placeholder="winwin-phone"
+              autoComplete="off"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <p className="text-xs leading-5 text-muted-foreground">
+              Enter winwin-phone to join the phone giveaway. Every $20 spent on items gives you 1 entry.
+            </p>
+            {giveawayNotice ? (
+              <p className="text-sm font-medium text-[hsl(var(--warning))]" role="status">
+                {giveawayNotice}
+              </p>
+            ) : null}
           </div>
           {getSessionToken() ? (
             <label className="flex items-center gap-2 text-sm">

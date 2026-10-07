@@ -1,4 +1,10 @@
-import { formatMoney, lineTotal, orderDisplayId } from '@/lib/pricing';
+import {
+  giveawayEligibleSubtotal,
+  giveawayEntryCount,
+  isPhoneGiveawayCode,
+  PHONE_GIVEAWAY_LINE,
+} from './giveaway.js';
+import { formatMoney, lineTotal, orderDisplayId } from './pricing.js';
 
 export function whatsappNumber(raw) {
   return String(raw || '0096181629538').replace(/[^0-9]/g, '').replace(/^0+/, '');
@@ -33,6 +39,19 @@ export function cartWhatsAppMessage(items, options = {}) {
     if (delivery.building) lines.push(`Building: ${delivery.building}`);
     if (delivery.floor) lines.push(`Floor: ${delivery.floor}`);
     if (delivery.instructions) lines.push(`Notes: ${delivery.instructions}`);
+  }
+  if (isPhoneGiveawayCode(options.giveawayCode)) {
+    const eligible = options.eligibleSubtotal != null
+      ? options.eligibleSubtotal
+      : giveawayEligibleSubtotal({
+        itemSubtotal: subtotal,
+        discount,
+        deliveryFee: options.deliveryFee,
+      });
+    lines.push('');
+    lines.push(PHONE_GIVEAWAY_LINE);
+    const entries = giveawayEntryCount(eligible);
+    if (entries > 0) lines.push(`Phone giveaway entries: ${entries}`);
   }
   return lines.join('\n');
 }

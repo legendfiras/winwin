@@ -145,6 +145,11 @@ async function ensureTransactions(env) {
   } catch {
     /* column already exists */
   }
+  try {
+    await env.DB.prepare('ALTER TABLE store_transactions ADD COLUMN giveaway_code TEXT').run();
+  } catch {
+    /* column already exists */
+  }
 }
 
 function roundMoney(value) {
@@ -190,6 +195,7 @@ function txFromRow(row) {
     member_price_requested: Boolean(row.member_price_requested),
     items,
     delivery,
+    giveaway_code: row.giveaway_code || '',
     display_id: orderDisplayId(row.id),
   };
 }
@@ -282,8 +288,8 @@ async function submitCheckout(env, body) {
     `INSERT INTO store_transactions (
       id, customer_id, customer_email, customer_name, customer_phone, type, status,
       amount_usd, discount_usd, items_json, product_ids, product_summary, calculated_points,
-      submitted_by, ambassador_code, member_price_requested, created_date, delivery_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      submitted_by, ambassador_code, member_price_requested, created_date, delivery_json, giveaway_code
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -304,6 +310,7 @@ async function submitCheckout(env, body) {
       body.member_price_requested ? 1 : 0,
       nowIso(),
       JSON.stringify(delivery),
+      String(body.giveaway_code || '').trim(),
     )
     .run();
 
