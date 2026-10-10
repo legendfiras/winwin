@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { store } from '@/api/store';
 import { productImageSrc } from '@/lib/productImage';
+import { uploadErrorMessage } from '@/lib/uploadError';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,18 +34,23 @@ export default function AdminSlideshow() {
     e.preventDefault();
     if (!imageFile) return toast.error('Please select an image');
     setUploading(true);
-    const { file_url } = await store.upload(imageFile);
-    await store.slides.create({
-      image_url: file_url,
-      title,
-      order: slides.length + 1,
-    });
-    qc.invalidateQueries({ queryKey: ['slideshow'] });
-    setDialogOpen(false);
-    setTitle('');
-    setImageFile(null);
-    setUploading(false);
-    toast.success('Slide added!');
+    try {
+      const { file_url } = await store.upload(imageFile);
+      await store.slides.create({
+        image_url: file_url,
+        title,
+        order: slides.length + 1,
+      });
+      qc.invalidateQueries({ queryKey: ['slideshow'] });
+      setDialogOpen(false);
+      setTitle('');
+      setImageFile(null);
+      toast.success('Slide added!');
+    } catch (err) {
+      toast.error(uploadErrorMessage(err));
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (

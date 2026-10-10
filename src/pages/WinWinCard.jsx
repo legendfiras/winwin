@@ -4,6 +4,7 @@ import Storefront from '@/components/Storefront';
 import Container from '@/components/Container';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import { useSettings } from '@/lib/useSettings';
+import { productImageSrc } from '@/lib/productImage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Star, Truck, Percent, Gift, Trophy, CheckCircle, MessageCircle } from 'lucide-react';
@@ -54,7 +55,7 @@ export default function WinWinCard() {
         {/* Card Image */}
         {cardImage && (
           <div className="rounded-2xl overflow-hidden shadow-xl">
-            <img src={cardImage} alt="WinWin Card" className="w-full h-auto" />
+            <img src={productImageSrc(cardImage)} alt="WinWin Card" className="w-full h-auto" />
           </div>
         )}
 
