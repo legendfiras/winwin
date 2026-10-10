@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { store } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { useSettings } from '@/lib/useSettings';
+import { productImageSrc } from '@/lib/productImage';
+import { uploadErrorMessage } from '@/lib/uploadError';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +21,17 @@ export default function AdminWinWinCard() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await store.upload(file);
-    await store.settings.upsert('winwin_card_image', file_url);
-    qc.invalidateQueries({ queryKey: ['appSettings'] });
-    setUploading(false);
-    toast.success('WinWin Card image updated!');
+    try {
+      const { file_url } = await store.upload(file);
+      await store.settings.upsert('winwin_card_image', file_url);
+      qc.invalidateQueries({ queryKey: ['appSettings'] });
+      toast.success('WinWin Card image updated!');
+    } catch (err) {
+      toast.error(uploadErrorMessage(err));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   }
 
   const currentImage = getSetting('winwin_card_image');
@@ -40,7 +48,7 @@ export default function AdminWinWinCard() {
         <CardContent className="space-y-4">
           {currentImage && (
             <div className="rounded-xl overflow-hidden border border-border">
-              <img src={currentImage} alt="WinWin Card" className="w-full h-auto max-h-64 object-contain" />
+              <img src={productImageSrc(currentImage)} alt="WinWin Card" className="w-full h-auto max-h-64 object-contain" />
             </div>
           )}
           <div>

@@ -1,3 +1,5 @@
+import { resolveApiBase } from '@/lib/apiConfig';
+
 export function productImageFilename(url) {
   if (!url) return '';
   try {
@@ -9,18 +11,19 @@ export function productImageFilename(url) {
   }
 }
 
+// Uploaded images live in the Worker's KV store, which the Pages site on
+// winwinleb.com cannot read, so /img/ paths must be fetched from the Worker.
+function workerImagePath(path) {
+  return `${resolveApiBase()}${path}`;
+}
+
 export function productImageSrc(url) {
   if (!url) return '';
-  if (
-    url.startsWith('/img/') ||
-    url.startsWith('blob:') ||
-    url.startsWith('data:')
-  ) {
-    return url;
-  }
+  if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+  if (url.startsWith('/img/')) return workerImagePath(url);
   const filename = productImageFilename(url);
   if (!filename) return url;
-  return `/img/${filename}`;
+  return workerImagePath(`/img/${filename}`);
 }
 
 export function productImageFallback(event) {

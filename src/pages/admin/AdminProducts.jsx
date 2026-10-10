@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { pointsPriceFromUsd, formatPoints } from '@/lib/pointsTiers';
 import { ADMIN_CATEGORIES } from '@/lib/categories';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
+import { uploadErrorMessage } from '@/lib/uploadError';
 
 const emptyProduct = { name: '', description: '', price: 0, points_price: 0, category: 'home_appliance', image_url: '', in_stock: true };
 
@@ -62,10 +63,16 @@ export default function AdminProducts() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const { file_url } = await store.upload(file);
-    setForm(f => ({ ...f, image_url: file_url }));
-    setUploading(false);
-    toast.success('Image uploaded!');
+    try {
+      const { file_url } = await store.upload(file);
+      setForm(f => ({ ...f, image_url: file_url }));
+      toast.success('Image uploaded!');
+    } catch (err) {
+      toast.error(uploadErrorMessage(err));
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   }
 
   function handleSave(e) {
