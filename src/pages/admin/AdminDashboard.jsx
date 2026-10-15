@@ -1,132 +1,55 @@
-import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { store, asProducts } from '@/api/store';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Package, Users, Star, MessageSquare, ClipboardList, Database } from 'lucide-react';
-import { toast } from 'sonner';
+import { ClipboardList, Users, Star, Package } from 'lucide-react';
 import { invokeAdmin } from '@/lib/customerAuth';
-import PointsEarnSettings from '@/components/admin/PointsEarnSettings';
 
 export default function AdminDashboard() {
-  const qc = useQueryClient();
-  const [feedbackText, setFeedbackText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [migrating, setMigrating] = useState(false);
-
-  const { data: pending = [] } = useQuery({
-    queryKey: ['storeTransactions', 'PENDING'],
+  const { data: stats } = useQuery({
+    queryKey: ['adminStats'],
     queryFn: async () => {
-      const res = await invokeAdmin('listPendingTransactions', { status: 'PENDING' });
-      return res?.transactions || [];
+      const res = await invokeAdmin('adminStats');
+      return res?.error ? {} : (res || {});
     },
   });
-
   const { data: productsData } = useQuery({
     queryKey: ['catalog', 1, '', '', 'featured'],
     queryFn: () => store.products.list({ page: 1, limit: 1 }),
   });
   const productsCount = Number(productsData?.total) || asProducts(productsData).length;
-  const { data: customers = [] } = useQuery({
-    queryKey: ['customers'],
-    queryFn: async () => {
-      const res = await invokeAdmin('listCustomers');
-      return res?.customers || [];
-    },
-  });
-  const { data: settingsData } = useQuery({
-    queryKey: ['appSettings'],
-    queryFn: () => store.settings.list(),
-  });
-  const settings = Array.isArray(settingsData) ? settingsData : [];
-
-  React.useEffect(() => {
-    const fb = settings.find(s => s.setting_key === 'customer_feedback');
-    if (fb) setFeedbackText(fb.setting_value || '');
-  }, [settings]);
-
-  const saveFeedback = async () => {
-    setSaving(true);
-    await store.settings.upsert('customer_feedback', feedbackText);
-    qc.invalidateQueries({ queryKey: ['appSettings'] });
-    toast.success('Feedback saved!');
-    setSaving(false);
-  };
-
-  const cardMembers = customers.filter(c => c.card_active).length;
-
-  const stats = [
-    { label: 'Products', value: productsCount, icon: Package, color: 'text-primary' },
-    { label: 'Customers', value: customers.length, icon: Users, color: 'text-blue-500' },
-    { label: 'WinWin Members', value: cardMembers, icon: Star, color: 'text-yellow-500' },
-    { label: 'Pending txns', value: pending.length, icon: ClipboardList, color: 'text-amber-500' },
+  const cards = [
+    { label: 'Orders waiting', value: stats?.pending_orders ?? '—', icon: ClipboardList, to: '/admin/pending' },
+    { label: 'Customers', value: stats?.customers ?? '—', icon: Users, to: '/admin/customers' },
+    { label: 'Active cards', value: stats?.active_cards ?? '—', icon: Star, to: '/admin/loyalty' },
+    { label: 'Products', value: productsCount, icon: Package, to: '/admin/products' },
   ];
 
   return (
     <AdminLayout>
-      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">Dashboard</h1>
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:mb-6 sm:gap-4 md:grid-cols-4">
-        {stats.map(stat => (
-          <Card key={stat.label}>
-            <CardContent className="px-3 pb-4 pt-4 text-center sm:pt-6">
-              <stat.icon className={`mx-auto mb-2 h-6 w-6 sm:h-8 sm:w-8 ${stat.color}`} />
-              <div className="font-heading text-2xl font-bold sm:text-3xl">{stat.value}</div>
-              <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
-            </CardContent>
-          </Card>
+      <h1 className="mb-2 font-heading text-2xl font-bold">Dashboard</h1>
+      <p className="mb-4 max-w-xl text-sm text-muted-foreground">
+        These counts come from the database. Approve deliveries from the order queue.
+      </p>
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {cards.map((stat) => (
+          <Link key={stat.label} to={stat.to}>
+            <Card className="h-full">
+              <CardContent className="px-3 pb-4 pt-4 text-center">
+                <stat.icon className="mx-auto mb-2 h-6 w-6 text-primary" />
+                <div className="font-heading text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
-      <div className="mb-4 sm:mb-6">
-        <PointsEarnSettings />
-      </div>
-      <div className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:flex-wrap sm:gap-3">
-        <Button asChild className="h-11 w-full sm:w-auto">
-          <Link to="/admin/pending">Review orders</Link>
-        </Button>
-        <Button
-          variant="outline"
-          className="h-11 w-full sm:w-auto"
-          disabled={migrating}
-          onClick={async () => {
-            setMigrating(true);
-            try {
-              const data = await invokeAdmin('migrateLegacyBalances');
-              if (data?.error) toast.error(data.error);
-              else toast.success(`Migration done. Balances: ${data.migrated_balances}, passwords hashed: ${data.hashed_passwords}, memberships: ${data.imported_memberships}`);
-            } catch (err) {
-              toast.error(err.message || 'Migration failed');
-            } finally {
-              setMigrating(false);
-            }
-          }}
-        >
-          <Database className="mr-2 h-4 w-4" />
-          {migrating ? 'Migrating...' : 'Migrate legacy balances'}
-        </Button>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-primary" />
-            Customer Feedback
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            placeholder="Enter feedback or announcements for customers..."
-            value={feedbackText}
-            onChange={e => setFeedbackText(e.target.value)}
-            rows={4}
-            className="resize-y"
-          />
-          <Button onClick={saveFeedback} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Feedback'}
-          </Button>
-        </CardContent>
-      </Card>
+      <Button asChild className="h-11 w-full sm:w-auto">
+        <Link to="/admin/pending">Open the order queue</Link>
+      </Button>
     </AdminLayout>
   );
 }

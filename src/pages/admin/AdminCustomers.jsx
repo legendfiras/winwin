@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -19,6 +19,7 @@ export default function AdminCustomers() {
   const qc = useQueryClient();
   const earn = useEarnSettings();
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
   const [addPointsCustomer, setAddPointsCustomer] = useState(null);
   const [pointsToAdd, setPointsToAdd] = useState('');
   const [editMobileCustomer, setEditMobileCustomer] = useState(null);
@@ -31,9 +32,6 @@ export default function AdminCustomers() {
   const [addWalletCustomer, setAddWalletCustomer] = useState(null);
   const [walletMode, setWalletMode] = useState('add');
   const [walletAmount, setWalletAmount] = useState('');
-  const [editCardDatesCustomer, setEditCardDatesCustomer] = useState(null);
-  const [newPurchaseDate, setNewPurchaseDate] = useState('');
-  const [newExpiryDate, setNewExpiryDate] = useState('');
   const [editDrawEntriesCustomer, setEditDrawEntriesCustomer] = useState(null);
   const [drawEntriesToAdd, setDrawEntriesToAdd] = useState('');
   const [pointsReason, setPointsReason] = useState('');
@@ -61,6 +59,16 @@ export default function AdminCustomers() {
       c.legacy_user_id?.toLowerCase().includes(q)
     );
   }, [customers, search]);
+
+  useEffect(() => {
+    if (!filtered.length) {
+      setSelectedId(null);
+      return;
+    }
+    if (!filtered.some((customer) => customer.id === selectedId)) setSelectedId(filtered[0].id);
+  }, [filtered, selectedId]);
+
+  const selected = filtered.find((customer) => customer.id === selectedId) || null;
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => invokeAdmin('adminUpdateCustomer', { customer_id: id, ...data }),
@@ -101,18 +109,6 @@ export default function AdminCustomers() {
     onSettled: () => { qc.invalidateQueries({ queryKey: ['customers'] }); },
   });
 
-  const toggleCard = (customer, value) => {
-    const fn = value ? 'activateMembership' : 'deactivateMembership';
-    invokeAdmin(fn, { customer_id: customer.id }).then((data) => {
-      if (data?.error) {
-        toast.error(data.error);
-        return;
-      }
-      toast.success(value ? 'Card activated for 30 days. +100 points logged.' : 'Card deactivated.');
-      qc.invalidateQueries({ queryKey: ['customers'] });
-    });
-  };
-
   const handleEditMobile = () => {
     if (!newMobile.trim()) { toast.error('Enter a valid mobile number'); return; }
     updateMut.mutate({ id: editMobileCustomer.id, data: { mobile: newMobile.trim() } }, {
@@ -148,63 +144,38 @@ export default function AdminCustomers() {
     });
   };
 
-  const handleAdjustWallet = () => {
+  const handleAdjustWallet = async () => {
     const amt = parseFloat(walletAmount);
     if (!amt || amt <= 0 || isNaN(amt)) { toast.error('Enter a valid positive amount'); return; }
-    const delta = walletMode === 'deduct' ? -amt : amt;
-    const newBalance = (addWalletCustomer.wallet_balance || 0) + delta;
-    if (newBalance < 0) { toast.error('Balance cannot go below $0.00'); return; }
-    updateMut.mutate({
-      id: addWalletCustomer.id,
-      data: { wallet_balance: newBalance },
-    }, {
-      onSuccess: () => {
-        const label = walletMode === 'deduct' ? 'deducted from' : 'added to';
-        toast.success(`${walletMode === 'deduct' ? '-' : '+'}$${amt.toFixed(2)} ${label} ${addWalletCustomer.full_name}'s wallet`);
-        setAddWalletCustomer(null);
-        setWalletAmount('');
-      }
+    const data = await invokeAdmin('adjustWallet', {
+      customer_id: addWalletCustomer.id,
+      amount: amt,
+      mode: walletMode === 'deduct' ? 'deduct' : 'add',
     });
-  };
-
-  const handleEditCardDates = async () => {
-    if (!newPurchaseDate) { toast.error('Please enter a purchase date'); return; }
-    if (!newExpiryDate) { toast.error('Please enter an expiry date'); return; }
-    const data = await invokeAdmin('updateMembershipExpiry', {
-      customer_id: editCardDatesCustomer.id,
-      activated_at: newPurchaseDate,
-      expires_at: newExpiryDate,
-    });
-    if (data?.error) {
-      toast.error(data.error);
-      return;
-    }
-    toast.success(`Card dates updated for ${editCardDatesCustomer.full_name}`);
-    setEditCardDatesCustomer(null);
-    setNewPurchaseDate('');
-    setNewExpiryDate('');
+    if (data?.error) { toast.error(data.error); return; }
+    const label = walletMode === 'deduct' ? 'deducted from' : 'added to';
+    toast.success(`${walletMode === 'deduct' ? '-' : '+'}$${amt.toFixed(2)} ${label} ${addWalletCustomer.full_name}'s wallet`);
+    setAddWalletCustomer(null);
+    setWalletAmount('');
     qc.invalidateQueries({ queryKey: ['customers'] });
   };
 
   const [drawEntriesMode, setDrawEntriesMode] = useState('add');
   const [pointsMode, setPointsMode] = useState('add');
 
-  const handleEditDrawEntries = () => {
+  const handleEditDrawEntries = async () => {
     const entries = parseInt(drawEntriesToAdd);
     if (!entries || entries <= 0) { toast.error('Enter a valid number'); return; }
-    const delta = drawEntriesMode === 'deduct' ? -entries : entries;
-    const newEntries = (editDrawEntriesCustomer.draw_entries || 0) + delta;
-    if (newEntries < 0) { toast.error('Draw entries cannot go below 0'); return; }
-    updateMut.mutate({
-      id: editDrawEntriesCustomer.id,
-      data: { draw_entries: newEntries },
-    }, {
-      onSuccess: () => {
-        toast.success(`${drawEntriesMode === 'deduct' ? '-' : '+'}${entries} draw entries ${drawEntriesMode === 'deduct' ? 'removed from' : 'added to'} ${editDrawEntriesCustomer.full_name}`);
-        setEditDrawEntriesCustomer(null);
-        setDrawEntriesToAdd('');
-      }
+    const data = await invokeAdmin('adjustDrawEntries', {
+      customer_id: editDrawEntriesCustomer.id,
+      amount: entries,
+      mode: drawEntriesMode === 'deduct' ? 'deduct' : 'add',
     });
+    if (data?.error) { toast.error(data.error); return; }
+    toast.success(`${drawEntriesMode === 'deduct' ? '-' : '+'}${entries} draw entries ${drawEntriesMode === 'deduct' ? 'removed from' : 'added to'} ${editDrawEntriesCustomer.full_name}`);
+    setEditDrawEntriesCustomer(null);
+    setDrawEntriesToAdd('');
+    qc.invalidateQueries({ queryKey: ['customers'] });
   };
 
   const handleAddPoints = async () => {
@@ -230,7 +201,8 @@ export default function AdminCustomers() {
 
   return (
     <AdminLayout>
-      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">Customers</h1>
+      <h1 className="mb-1 font-heading text-2xl font-bold">Users</h1>
+      <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Pick a customer and control their points, wallet, draws, phone, and ambassador status. Card dates stay on Loyalty.</p>
 
       {/* Search */}
       <div className="relative mb-4">
@@ -364,38 +336,6 @@ export default function AdminCustomers() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditMobileCustomer(null); setNewMobile(''); }}>Cancel</Button>
             <Button onClick={handleEditMobile} disabled={updateMut.isPending}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editCardDatesCustomer} onOpenChange={open => { if (!open) { setEditCardDatesCustomer(null); setNewPurchaseDate(''); setNewExpiryDate(''); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Card Dates for {editCardDatesCustomer?.full_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Purchase Date</Label>
-                <Input
-                  type="date"
-                  value={newPurchaseDate}
-                  onChange={e => setNewPurchaseDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Expiry Date</Label>
-                <Input
-                  type="date"
-                  value={newExpiryDate}
-                  onChange={e => setNewExpiryDate(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditCardDatesCustomer(null); setNewPurchaseDate(''); setNewExpiryDate(''); }}>Cancel</Button>
-            <Button onClick={handleEditCardDates} disabled={updateMut.isPending}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -555,272 +495,197 @@ export default function AdminCustomers() {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="space-y-3 md:hidden">
-        {filtered.map((c) => (
-          <Card key={c.id}>
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-heading font-semibold">{c.full_name}</p>
-                  <p className="truncate text-sm text-muted-foreground">{c.mobile || c.email || '—'}</p>
+      <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <Card className="overflow-hidden">
+          <div className="max-h-[72vh] overflow-y-auto">
+            {filtered.map((c) => {
+              const active = selected?.id === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedId(c.id)}
+                  className={`flex w-full items-center justify-between gap-3 border-b px-4 py-3 text-left ${active ? 'bg-[#9F1D35] text-white' : 'hover:bg-[#F5EDE1]'}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-heading font-semibold">{c.full_name}</span>
+                    <span className={`block truncate text-xs ${active ? 'text-white/80' : 'text-muted-foreground'}`}>{c.mobile || c.email || 'No phone'}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${active ? 'bg-white/15' : 'bg-[#F5EDE1] text-[#7A1528]'}`}>
+                    {c.points || 0} pts
+                  </span>
+                </button>
+              );
+            })}
+            {filtered.length === 0 && !isLoading && (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {search.trim() ? 'No customers match your search.' : 'No customers yet'}
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {selected ? (
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="space-y-1 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-heading text-xl font-bold">{selected.full_name}</h2>
+                    <p className="text-sm text-muted-foreground">{selected.email || 'No email'} · {selected.country || 'No country'}</p>
+                  </div>
+                  {selected.card_active ? <Badge>Card active</Badge> : <Badge variant="outline">No card</Badge>}
                 </div>
-                <Badge variant="secondary">{c.points || 0} pts</Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <p><span className="text-muted-foreground">Card</span></p>
-                <div className="flex justify-end">
-                  <Switch checked={c.card_active || false} onCheckedChange={(v) => toggleCard(c, v)} />
-                </div>
-                <p className="text-muted-foreground">Expiry</p>
-                <p className="text-right">
-                  {c.card_expiry_date ? new Date(c.card_expiry_date).toLocaleDateString() : '—'}
-                  {c.card_expired && <span className="ml-1 text-destructive">(expired)</span>}
-                </p>
-                <p className="text-muted-foreground">Ambassador</p>
-                <div className="flex justify-end">
-                  <Switch checked={c.is_ambassador || false} onCheckedChange={(v) => toggleAmbassador(c, v)} />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className="h-10" onClick={() => { setAddPointsCustomer(c); setPointsMode('add'); setPointsToAdd(''); }}>
-                  <PlusCircle className="mr-1 h-4 w-4" /> Points
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Points</p>
+                  <p className="font-heading text-3xl font-bold">{selected.points || 0}</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { setAddPointsCustomer(selected); setPointsMode('add'); setPointsToAdd(''); }}>
+                      <PlusCircle className="mr-1 h-4 w-4" /> Add
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAddPointsCustomer(selected); setPointsMode('deduct'); setPointsToAdd(''); }}>
+                      <MinusCircle className="mr-1 h-4 w-4" /> Remove
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Draw entries</p>
+                  <p className="font-heading text-3xl font-bold">{selected.draw_entries || 0}</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => { setEditDrawEntriesCustomer(selected); setDrawEntriesMode('add'); setDrawEntriesToAdd(''); }}>
+                      <PlusCircle className="mr-1 h-4 w-4" /> Add
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditDrawEntriesCustomer(selected); setDrawEntriesMode('deduct'); setDrawEntriesToAdd(''); }}>
+                      <MinusCircle className="mr-1 h-4 w-4" /> Remove
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Phone</p>
+                  <p className="font-heading text-lg font-semibold">{selected.mobile || '—'}</p>
+                  <Button size="sm" variant="outline" onClick={() => { setEditMobileCustomer(selected); setNewMobile(selected.mobile || ''); }}>
+                    <Pencil className="mr-1 h-4 w-4" /> Edit phone
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">WinWin card</p>
+                  <p className="text-sm">
+                    {selected.card_number || 'No card number'}
+                    {selected.card_expiry_date ? ` · expires ${new Date(selected.card_expiry_date).toLocaleDateString()}` : ''}
+                    {selected.card_expired ? ' · expired' : ''}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setEditCardNumberCustomer(selected); setNewCardNumber(selected.card_number || ''); }}>
+                      <Pencil className="mr-1 h-4 w-4" /> Card number
+                    </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/admin/loyalty">Dates in Loyalty</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ambassador</p>
+                    <Switch checked={selected.is_ambassador || false} onCheckedChange={(v) => toggleAmbassador(selected, v)} />
+                  </div>
+                  <p className="text-sm">{selected.ambassador_code || 'No ambassador code'}</p>
+                  <Button size="sm" variant="outline" onClick={() => { setEditAmbassadorCustomer(selected); setNewAmbassadorCode(selected.ambassador_code || ''); }}>
+                    <Pencil className="mr-1 h-4 w-4" /> Edit code
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Wallet</p>
+                  {selected.is_ambassador ? (
+                    <>
+                      <p className="font-heading text-3xl font-bold">${(selected.wallet_balance || 0).toFixed(2)}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => { setAddWalletCustomer(selected); setWalletMode('add'); setWalletAmount(''); }}>
+                          <PlusCircle className="mr-1 h-4 w-4" /> Add
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setAddWalletCustomer(selected); setWalletMode('deduct'); setWalletAmount(''); }}>
+                          <MinusCircle className="mr-1 h-4 w-4" /> Deduct
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Turn ambassador on to use a wallet.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setHistoryCustomer(selected)}>
+                <History className="mr-1 h-4 w-4" /> History
+              </Button>
+              <Button variant="outline" onClick={() => { setCreateTxCustomer(selected); setCreateTxType('PRODUCT_PURCHASE'); setCreateTxAmount(''); setCreateTxNote(''); }}>
+                <ClipboardList className="mr-1 h-4 w-4" /> New order
+              </Button>
+              {selected.account_source === 'migrated' && selected.password_setup_required ? (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const data = await invokeAdmin('adminSendPasswordSetup', {
+                      customer_id: selected.id,
+                      app_origin: window.location.origin,
+                    });
+                    if (data?.error) {
+                      toast.error(data.error);
+                      return;
+                    }
+                    if (data.emailed) {
+                      toast.success('Password reset email sent');
+                      return;
+                    }
+                    if (data.setup_url) {
+                      try { await navigator.clipboard.writeText(data.setup_url); } catch { /* ignore */ }
+                      toast.success('Email could not be sent. The setup link was copied instead.');
+                    } else {
+                      toast.error('Could not send the password reset email');
+                    }
+                  }}
+                >
+                  <KeyRound className="mr-1 h-4 w-4" /> Password link
                 </Button>
-                <Button size="sm" variant="outline" className="h-10" onClick={() => { setEditMobileCustomer(c); setNewMobile(c.mobile || ''); }}>
-                  <Pencil className="mr-1 h-4 w-4" /> Mobile
-                </Button>
-                <Button size="sm" variant="outline" className="h-10" onClick={() => setHistoryCustomer(c)}>
-                  <History className="mr-1 h-4 w-4" /> History
-                </Button>
-                <Button size="sm" variant="outline" className="h-10 text-destructive" onClick={() => setDeleteCustomer(c)}>
-                  <Trash2 className="mr-1 h-4 w-4" /> Delete
-                </Button>
-              </div>
+              ) : null}
+              <Button variant="destructive" onClick={() => setDeleteCustomer(selected)}>
+                <Trash2 className="mr-1 h-4 w-4" /> Delete
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-sm text-muted-foreground">
+              {isLoading ? 'Loading customers...' : 'Select a customer to edit their account.'}
             </CardContent>
           </Card>
-        ))}
-        {filtered.length === 0 && !isLoading && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            {search.trim() ? 'No customers match your search.' : 'No customers yet'}
-          </p>
         )}
       </div>
-
-      <Card className="hidden md:block">
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Mobile</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Points</TableHead>
-                <TableHead>Draw Entries</TableHead>
-                <TableHead>Card Number</TableHead>
-                <TableHead>WinWin Card</TableHead>
-                <TableHead>Card Expiry</TableHead>
-                <TableHead>Ambassador Code</TableHead>
-                <TableHead>Ambassador</TableHead>
-                <TableHead>Wallet Balance</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(c => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {c.full_name}
-                      <button
-                        onClick={() => { setAddPointsCustomer(c); setPointsMode('add'); setPointsToAdd(''); }}
-                        className="text-primary hover:text-primary/70 transition-colors"
-                        title="Add Points"
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => { setAddPointsCustomer(c); setPointsMode('deduct'); setPointsToAdd(''); }}
-                        className="text-destructive hover:text-destructive/70 transition-colors"
-                        title="Remove Points"
-                      >
-                        <MinusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>{c.email}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {c.mobile}
-                      <button
-                        onClick={() => { setEditMobileCustomer(c); setNewMobile(c.mobile || ''); }}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Edit Mobile"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>{c.country}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{c.points || 0}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{c.draw_entries || 0}</Badge>
-                      <button
-                        onClick={() => { setEditDrawEntriesCustomer(c); setDrawEntriesMode('add'); setDrawEntriesToAdd(''); }}
-                        className="text-primary hover:text-primary/70 transition-colors"
-                        title="Add Draw Entries"
-                      >
-                        <PlusCircle className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => { setEditDrawEntriesCustomer(c); setDrawEntriesMode('deduct'); setDrawEntriesToAdd(''); }}
-                        className="text-destructive hover:text-destructive/70 transition-colors"
-                        title="Remove Draw Entries"
-                      >
-                        <MinusCircle className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{c.card_number || '-'}</span>
-                      <button
-                        onClick={() => { setEditCardNumberCustomer(c); setNewCardNumber(c.card_number || ''); }}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Edit Card Number"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                    checked={c.card_active || false}
-                    onCheckedChange={v => toggleCard(c, v)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {c.card_expiry_date ? (
-                        <Badge variant={c.card_expired ? 'destructive' : 'outline'}>
-                          {new Date(c.card_expiry_date).toLocaleDateString()}
-                        </Badge>
-                      ) : '-'}
-                      <button
-                        onClick={() => { setEditCardDatesCustomer(c); setNewPurchaseDate(c.card_purchase_date || ''); setNewExpiryDate(c.card_expiry_date || ''); }}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Edit Card Dates"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{c.ambassador_code || '-'}</span>
-                      <button
-                        onClick={() => { setEditAmbassadorCustomer(c); setNewAmbassadorCode(c.ambassador_code || ''); }}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Edit Ambassador Code"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={c.is_ambassador || false}
-                      onCheckedChange={v => toggleAmbassador(c, v)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                   {c.is_ambassador ? (
-                     <div className="flex items-center gap-1">
-                       <span className="font-medium text-accent">${(c.wallet_balance || 0).toFixed(2)}</span>
-                       <button
-                         onClick={() => { setAddWalletCustomer(c); setWalletMode('add'); setWalletAmount(''); }}
-                         className="text-green-600 hover:text-green-800 transition-colors"
-                         title="Add USD"
-                       >
-                         <PlusCircle className="w-4 h-4" />
-                       </button>
-                       <button
-                         onClick={() => { setAddWalletCustomer(c); setWalletMode('deduct'); setWalletAmount(''); }}
-                         className="text-destructive hover:text-destructive/70 transition-colors"
-                         title="Deduct USD"
-                       >
-                         <MinusCircle className="w-4 h-4" />
-                       </button>
-                     </div>
-                   ) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setHistoryCustomer(c)}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Points history"
-                      >
-                        <History className="w-4 h-4" />
-                      </button>
-                      {c.account_source === 'migrated' && c.password_setup_required ? (
-                        <button
-                          onClick={async () => {
-                            const data = await invokeAdmin('adminSendPasswordSetup', {
-                              customer_id: c.id,
-                              app_origin: window.location.origin,
-                            });
-                            if (data?.error) {
-                              toast.error(data.error);
-                              return;
-                            }
-                            if (data.setup_url) {
-                              try { await navigator.clipboard.writeText(data.setup_url); } catch { /* ignore */ }
-                              toast.success('Password setup link copied');
-                            } else {
-                              toast.success('Setup email queued if mail is configured');
-                            }
-                          }}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                          title="Send password setup link"
-                        >
-                          <KeyRound className="w-4 h-4" />
-                        </button>
-                      ) : null}
-                      <button
-                        onClick={() => { setCreateTxCustomer(c); setCreateTxType('PRODUCT_PURCHASE'); setCreateTxAmount(''); setCreateTxNote(''); }}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        title="Create pending transaction"
-                      >
-                        <ClipboardList className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteCustomer(c)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        title="Delete Customer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && !isLoading && (
-                <TableRow>
-                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
-                    {search.trim() ? 'No customers match your search.' : 'No customers yet'}
-
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </AdminLayout>
   );
+}
+
+function ledgerAmount(row) {
+  const amount = Number(row.points_amount) || 0;
+  const sign = amount > 0 ? '+' : '';
+  if (row.type === 'WALLET_ADJUST') return `${sign}$${(amount / 100).toFixed(2)}`;
+  if (row.type === 'DRAW_ADJUST') return `${sign}${amount} entries`;
+  return `${sign}${amount} pts`;
 }
 
 function PointsHistoryDialog({ customer, onClose }) {
@@ -837,7 +702,7 @@ function PointsHistoryDialog({ customer, onClose }) {
     <Dialog open={Boolean(customer)} onOpenChange={() => onClose()}>
       <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Points history — {customer?.full_name}</DialogTitle>
+          <DialogTitle>Account history — {customer?.full_name}</DialogTitle>
         </DialogHeader>
         {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
         <div className="space-y-2">
@@ -849,7 +714,7 @@ function PointsHistoryDialog({ customer, onClose }) {
                 <p className="text-xs text-muted-foreground">{row.created_date ? new Date(row.created_date).toLocaleString() : ''}</p>
               </div>
               <span className={row.points_amount >= 0 ? 'text-green-600 font-semibold' : 'text-destructive font-semibold'}>
-                {row.points_amount >= 0 ? '+' : ''}{row.points_amount}
+                {ledgerAmount(row)}
               </span>
             </div>
           ))}

@@ -77,8 +77,7 @@ function filenameFromUrl(url) {
 
 function localImageUrl(url) {
   if (!url) return '';
-  if (url.startsWith('/img/')) return url;
-  const name = filenameFromUrl(url);
+  const name = filenameFromUrl(url).replace(/\.(jpe?g|png)$/i, '.webp');
   return name ? `/img/${name}` : '';
 }
 

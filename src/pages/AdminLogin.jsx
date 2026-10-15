@@ -16,7 +16,7 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (isAdmin()) navigate('/admin');
+    if (isAdmin()) navigate('/admin/customers');
   }, []);
 
   const handleLogin = async (e) => {
@@ -25,13 +25,13 @@ export default function AdminLogin() {
     try {
       const data = await invokePublic('adminLogin', { password: password.trim() });
       if (data?.error || !data?.admin_session_token) {
-        toast.error(data?.error || 'Incorrect password. Try 1234 if you have not changed it yet.');
+        toast.error(data?.error || 'Incorrect password');
         return;
       }
       setAdminSessionToken(data.admin_session_token);
       setAdmin(true);
       toast.success('Welcome, Admin!');
-      navigate('/admin');
+      navigate('/admin/customers');
     } catch (err) {
       toast.error(err.message || 'Login failed');
     } finally {
@@ -49,9 +49,6 @@ export default function AdminLogin() {
               <Shield className="w-8 h-8 text-primary" />
             </div>
             <CardTitle className="font-heading">Admin Access</CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Starter password is <span className="font-mono">1234</span> until you change it in Settings.
-            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">

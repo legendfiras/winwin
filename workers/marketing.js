@@ -2,8 +2,10 @@ import { Resend } from 'resend';
 
 const HARD_DAILY_LIMIT = 90;
 const DEFAULT_INACTIVITY_DAYS = 3;
+const MIN_DAYS_BETWEEN_SENDS = 14;
 const EMAIL_TIMEOUT_MS = 8000;
 const VALID_EMAIL_STATUSES = "('valid','unverified','verified')";
+const LOYALTY_CARD_URL = 'https://winwinleb.com/winwin-card';
 
 function nowIso() {
   return new Date().toISOString();
@@ -88,17 +90,13 @@ function escapeHtml(value) {
 
 function marketingCopy(customer, unsubscribeUrl) {
   const firstName = escapeHtml(customer.first_name || customer.full_name?.split(' ')[0] || 'there');
-  const accountUrl = 'https://winwinleb.com/my-account';
-  const useNewItemsCopy = Number(dateKey().replace(/-/g, '')) % 2 === 0;
-  const subject = useNewItemsCopy ? 'Something new is waiting on WinWin' : 'Your WinWin points are waiting';
-  const message = useNewItemsCopy
-    ? 'New items have recently been added. Log in to see what is available and check your points.'
-    : "You haven't visited WinWin in a few days. Log in to check your points and see what's new.";
-  const cta = useNewItemsCopy ? "See what's new" : 'Open WinWin';
+  const plainName = customer.first_name || customer.full_name?.split(' ')[0] || 'there';
+  const subject = 'The WinWin Card is $10 for 30 days';
+  const message = 'The WinWin Card is $10 and lasts 30 days from activation. Members get free delivery, 15% off every item, and a place in the draw.';
   return {
     subject,
-    text: `Hi ${customer.first_name || 'there'},\n\n${message}\n\n${cta}: ${accountUrl}\n\nYou are receiving this because you asked for WinWin email updates. Unsubscribe: ${unsubscribeUrl}`,
-    html: `<!doctype html><html><body style="margin:0;background:#fff7f2;font-family:Arial,sans-serif;color:#351713"><div style="display:none;max-height:0;overflow:hidden">Your WinWin points and account updates are waiting.</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff7f2;padding:28px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #f0ded5"><tr><td align="center" style="background:#8f1d2c;padding:24px"><img src="https://winwinleb.com/logo_winwin.png" alt="WinWin" width="140" style="display:block;max-width:140px;height:auto"></td></tr><tr><td style="padding:34px"><h1 style="margin:0 0 14px;font-size:26px;line-height:1.25;color:#8f1d2c">Hi ${firstName},</h1><p style="margin:0;font-size:16px;line-height:1.65;color:#5d4a45">${escapeHtml(message)}</p><p style="margin:28px 0 8px;text-align:center"><a href="${accountUrl}" style="display:inline-block;background:#8f1d2c;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:10px">${escapeHtml(cta)}</a></p></td></tr><tr><td style="padding:18px 34px;background:#fbf4f0;text-align:center;font-size:12px;line-height:1.6;color:#806d67">You asked to receive WinWin email updates. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#8f1d2c">Unsubscribe</a>.<br>Password reset and required account emails are not affected.</td></tr></table></td></tr></table></body></html>`,
+    text: `Hi ${plainName},\n\n${message}\n\nSee the WinWin Card: ${LOYALTY_CARD_URL}\n\nYou are receiving this because you asked for WinWin email updates. Unsubscribe: ${unsubscribeUrl}`,
+    html: `<!doctype html><html><body style="margin:0;background:#faf6ef;font-family:Arial,sans-serif;color:#321a19"><div style="display:none;max-height:0;overflow:hidden">WinWin Card: free delivery, 15% off, and draw entries. $10 for 30 days.</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#faf6ef;padding:28px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #eadfd2"><tr><td align="center" style="background:#4b0d1a;padding:24px"><img src="https://winwinleb.com/logo_winwin.png" alt="WinWin" width="140" style="display:block;max-width:140px;height:auto"></td></tr><tr><td style="padding:34px"><h1 style="margin:0 0 14px;font-size:26px;line-height:1.25;color:#4b0d1a">Hi ${firstName},</h1><p style="margin:0 0 16px;font-size:16px;line-height:1.65;color:#5d4a45">${escapeHtml(message)}</p><ul style="margin:0;padding:0 0 0 18px;font-size:15px;line-height:1.7;color:#5d4a45"><li>Free delivery on your orders</li><li>15% off every item</li><li>Your name enters the draw</li></ul><p style="margin:28px 0 8px;text-align:center"><a href="${LOYALTY_CARD_URL}" style="display:inline-block;background:#9f1d35;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:10px">See the WinWin Card</a></p></td></tr><tr><td style="padding:18px 34px;background:#fbf4f0;text-align:center;font-size:12px;line-height:1.6;color:#806d67">You asked to receive WinWin email updates. <a href="${escapeHtml(unsubscribeUrl)}" style="color:#9f1d35">Unsubscribe</a>.<br>Password reset and card expiry emails are not affected.</td></tr></table></td></tr></table></body></html>`,
   };
 }
 
@@ -205,29 +203,25 @@ function cutoffIso(days, now = new Date()) {
   return new Date(now.getTime() - days * 86400000).toISOString();
 }
 
-async function eligibleCount(env, cutoff) {
-  return env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM customers
-     WHERE account_status = 'active'
+const ELIGIBLE_WHERE = `account_status = 'active'
        AND marketing_emails_enabled = 1
        AND (marketing_unsubscribed_at IS NULL OR marketing_unsubscribed_at = '')
        AND email_normalized != ''
        AND email_status IN ${VALID_EMAIL_STATUSES}
-       AND last_login_at != '' AND last_login_at <= ?`,
-  ).bind(cutoff).first();
+       AND (last_marketing_email_sent_at IS NULL OR last_marketing_email_sent_at = '' OR last_marketing_email_sent_at <= ?)`;
+
+async function eligibleCount(env, sentBefore) {
+  return env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM customers WHERE ${ELIGIBLE_WHERE}`,
+  ).bind(sentBefore).first();
 }
 
-async function selectRecipients(env, cutoff, limit) {
+async function selectRecipients(env, sentBefore, limit) {
   const { results } = await env.DB.prepare(
     `SELECT id, first_name, full_name, email, email_normalized, last_login_at,
             last_marketing_email_sent_at, last_marketing_email_attempted_at
      FROM customers
-     WHERE account_status = 'active'
-       AND marketing_emails_enabled = 1
-       AND (marketing_unsubscribed_at IS NULL OR marketing_unsubscribed_at = '')
-       AND email_normalized != ''
-       AND email_status IN ${VALID_EMAIL_STATUSES}
-       AND last_login_at != '' AND last_login_at <= ?
+     WHERE ${ELIGIBLE_WHERE}
      ORDER BY
        CASE WHEN last_marketing_email_sent_at IS NULL OR last_marketing_email_sent_at = '' THEN 0 ELSE 1 END ASC,
        CASE WHEN last_marketing_email_sent_at IS NULL OR last_marketing_email_sent_at = ''
@@ -236,7 +230,7 @@ async function selectRecipients(env, cutoff, limit) {
        END ASC,
        id ASC
      LIMIT ?`,
-  ).bind(cutoff, limit).all();
+  ).bind(sentBefore, limit).all();
   return results || [];
 }
 
@@ -260,16 +254,16 @@ export async function runMarketingCampaign(env) {
   if (!cfg.enabled) return { skipped: true, reason: 'disabled' };
   const now = new Date();
   const day = dateKey(now);
-  const cutoff = cutoffIso(cfg.inactivityDays, now);
-  const count = Number((await eligibleCount(env, cutoff))?.n || 0);
+  const sentBefore = cutoffIso(MIN_DAYS_BETWEEN_SENDS, now);
+  const count = Number((await eligibleCount(env, sentBefore))?.n || 0);
 
-  const preview = await selectRecipients(env, cutoff, cfg.limit);
+  const preview = await selectRecipients(env, sentBefore, cfg.limit);
   if (cfg.dryRun) {
     const selected = preview.map((row) => ({ customer_id: row.id, email: row.email_normalized }));
     console.log('[WinWin marketing] dry run', { campaign_date: day, eligible: count, selected });
     return { mode: 'dry_run', campaign_date: day, eligible_count: count, selected_count: selected.length, selected };
   }
-  if (cfg.testRecipient) return runTestRecipient(env, cfg, cutoff);
+  if (cfg.testRecipient) return runTestRecipient(env, cfg, sentBefore);
   if (!env.RESEND_API_KEY || !env.MARKETING_FROM_EMAIL || !env.MARKETING_UNSUBSCRIBE_SECRET) {
     return { skipped: true, reason: 'configuration_missing' };
   }
@@ -314,13 +308,8 @@ export async function runMarketingCampaign(env) {
       `SELECT id, first_name, full_name, email_normalized
        FROM customers
        WHERE id = ?
-         AND account_status = 'active'
-         AND marketing_emails_enabled = 1
-         AND (marketing_unsubscribed_at IS NULL OR marketing_unsubscribed_at = '')
-         AND email_normalized != ''
-         AND email_status IN ${VALID_EMAIL_STATUSES}
-         AND last_login_at != '' AND last_login_at <= ?`,
-    ).bind(recipient.customer_id, cutoff).first();
+         AND ${ELIGIBLE_WHERE}`,
+    ).bind(recipient.customer_id, sentBefore).first();
     if (!current) {
       await env.DB.prepare(
         `UPDATE marketing_send_log SET status = 'skipped', failure_reason = 'no_longer_eligible'
@@ -394,18 +383,26 @@ export async function getMarketingStatus(env) {
   await ensureMarketingSchema(env);
   const cfg = config(env);
   const day = dateKey();
-  const cutoff = cutoffIso(cfg.inactivityDays);
-  const count = Number((await eligibleCount(env, cutoff))?.n || 0);
+  const sentBefore = cutoffIso(MIN_DAYS_BETWEEN_SENDS);
+  const count = Number((await eligibleCount(env, sentBefore))?.n || 0);
   const campaign = await env.DB.prepare('SELECT * FROM marketing_campaigns WHERE campaign_date = ?').bind(day).first();
   const { results: selected } = await env.DB.prepare(
     `SELECT customer_id, recipient_email, status, attempted_at, sent_at, failure_reason
      FROM marketing_send_log WHERE campaign_date = ? ORDER BY created_at ASC, customer_id ASC`,
   ).bind(day).all();
   const last = await env.DB.prepare('SELECT * FROM marketing_campaigns ORDER BY campaign_date DESC LIMIT 1').first();
-  const next = await selectRecipients(env, cutoff, cfg.limit);
+  const next = await selectRecipients(env, sentBefore, cfg.limit);
   return {
-    config: { enabled: cfg.enabled, dry_run: cfg.dryRun, daily_limit: cfg.limit, inactivity_days: cfg.inactivityDays, test_mode: Boolean(cfg.testRecipient) },
-    cutoff,
+    config: {
+      enabled: cfg.enabled,
+      dry_run: cfg.dryRun,
+      daily_limit: cfg.limit,
+      campaign: 'loyalty_card',
+      min_days_between_sends: MIN_DAYS_BETWEEN_SENDS,
+      inactivity_days: cfg.inactivityDays,
+      test_mode: Boolean(cfg.testRecipient),
+    },
+    cutoff: sentBefore,
     inactive_eligible_count: count,
     today: campaign || null,
     today_selected: selected || [],

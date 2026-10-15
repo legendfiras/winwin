@@ -8,6 +8,7 @@ import {
   creditPoints,
   getCustomer,
   expireStaleMemberships,
+  runCardExpiryReminders,
 } from './customers.js';
 import { ensureMarketingSchema, getMarketingStatus, runMarketingCampaign, unsubscribeMarketing } from './marketing.js';
 import {
@@ -17,8 +18,10 @@ import {
   CANONICAL_CATEGORIES,
   categoryKeysForFilter,
   categoryLabel,
-  normalizeCategory,
   resolveProductCategory,
+  productCategoryList,
+  productTags,
+  sanitizeProductMeta,
 } from '../src/lib/categories.js';
 import {
   POINTS_EARN_MIN_USD_KEY,
@@ -83,9 +86,12 @@ async function sha256(text) {
 
 function productFromRow(row) {
   if (!row) return null;
+  const categories = productCategoryList(row);
   return {
     ...row,
-    category: resolveProductCategory(row),
+    category: categories[0] || resolveProductCategory(row),
+    categories,
+    tags: productTags(row),
     in_stock: Boolean(row.in_stock),
     price: Number(row.price) || 0,
     points_price: Number(row.points_price) || 0,
@@ -345,7 +351,83 @@ async function listPendingTransactions(env, body) {
       .all();
     rows = result.results || [];
   }
-  return json({ success: true, transactions: rows.map(txFromRow) });
+  const q = String(body.q || '').trim().toLowerCase();
+  const transactions = rows.map(txFromRow).filter((tx) => {
+    if (!q) return true;
+    const delivery = tx.delivery || {};
+    const hay = [
+      tx.display_id,
+      tx.id,
+      tx.customer_name,
+      tx.customer_phone,
+      tx.customer_email,
+      tx.product_summary,
+      tx.giveaway_code,
+      tx.type,
+      delivery.governorate,
+      delivery.street,
+      delivery.instructions,
+    ].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  return json({ success: true, transactions });
+}
+
+async function adminStats(env) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pending = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM store_transactions WHERE status IN ('PENDING', 'PROCESSING')`,
+  ).first();
+  const customers = await env.DB.prepare('SELECT COUNT(*) AS n FROM customers').first();
+  const cards = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM customers
+     WHERE has_winwin_card = 1 AND card_expiry_date IS NOT NULL AND card_expiry_date != ''
+       AND substr(card_expiry_date, 1, 10) >= ?`,
+  ).bind(today).first();
+  let recovery = { n: 0 };
+  try {
+    recovery = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM recovery_requests WHERE status = 'PENDING'`,
+    ).first();
+  } catch {
+    recovery = { n: 0 };
+  }
+  return json({
+    success: true,
+    pending_orders: Number(pending?.n) || 0,
+    customers: Number(customers?.n) || 0,
+    active_cards: Number(cards?.n) || 0,
+    pending_recovery: Number(recovery?.n) || 0,
+  });
+}
+
+async function hashAdminPassword(password) {
+  const salt = crypto.randomUUID().replace(/-/g, '');
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    key,
+    256,
+  );
+  const hex = [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `pbkdf2$${salt}$${hex}`;
+}
+
+async function adminPasswordMatches(stored, password) {
+  const value = String(stored || '');
+  if (!value.startsWith('pbkdf2$')) return value === password;
+  const [, salt, expected] = value.split('$');
+  if (!salt || !expected) return false;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    key,
+    256,
+  );
+  const hex = [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hex === expected;
 }
 
 async function approveTransaction(env, body, admin) {
@@ -459,25 +541,28 @@ async function ensureSettings(env) {
 async function upsertProducts(env, products) {
   if (!Array.isArray(products) || products.length === 0) return;
   const stmt = env.DB.prepare(
-    `INSERT OR REPLACE INTO products (id, name, description, price, points_price, category, image_url, in_stock, created_date, updated_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO products (id, name, description, price, points_price, category, categories, tags, image_url, in_stock, created_date, updated_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   const batch = products
     .filter((p) => p && p.id && p.name)
-    .map((p) =>
-      stmt.bind(
+    .map((p) => {
+      const meta = sanitizeProductMeta(p);
+      return stmt.bind(
         p.id,
         p.name,
         p.description || '',
         Number(p.price) || 0,
         Number(p.points_price) || 0,
-        resolveProductCategory(p),
+        meta.category,
+        JSON.stringify(meta.categories),
+        JSON.stringify(meta.tags),
         p.image_url || '',
         p.in_stock === false ? 0 : 1,
         p.created_date || nowIso(),
         p.updated_date || p.created_date || nowIso(),
-      ),
-    );
+      );
+    });
   for (let i = 0; i < batch.length; i += 50) {
     await env.DB.batch(batch.slice(i, i + 50));
   }
@@ -490,6 +575,16 @@ async function ensureProductIndexes(env) {
   await env.DB.prepare(
     'CREATE INDEX IF NOT EXISTS idx_products_created_date ON products (created_date)',
   ).run();
+  for (const sql of [
+    'ALTER TABLE products ADD COLUMN categories TEXT',
+    'ALTER TABLE products ADD COLUMN tags TEXT',
+  ]) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch {
+      /* column already exists */
+    }
+  }
 }
 
 async function migrateCategories(env) {
@@ -535,13 +630,12 @@ async function migrateCategories(env) {
 }
 
 async function categoryCountsFromDb(env) {
-  const { results } = await env.DB.prepare(
-    'SELECT category, COUNT(*) AS n FROM products GROUP BY category',
-  ).all();
+  const { results } = await env.DB.prepare('SELECT id, category, categories FROM products').all();
   const counts = {};
   for (const row of results || []) {
-    const key = normalizeCategory(row.category);
-    counts[key] = (counts[key] || 0) + Number(row.n || 0);
+    for (const key of productCategoryList(row)) {
+      counts[key] = (counts[key] || 0) + 1;
+    }
   }
   return counts;
 }
@@ -562,8 +656,16 @@ async function listProductsPaged(env, url) {
   const binds = [];
 
   if (keys?.length) {
-    where.push(`category IN (${keys.map(() => '?').join(',')})`);
-    binds.push(...keys);
+    const safeKeys = keys.filter((key) => /^[a-z0-9_]+$/.test(key));
+    if (safeKeys.length) {
+      const parts = [`category IN (${safeKeys.map(() => '?').join(',')})`];
+      binds.push(...safeKeys);
+      for (const key of safeKeys) {
+        parts.push('categories LIKE ?');
+        binds.push(`%"${key}"%`);
+      }
+      where.push(`(${parts.join(' OR ')})`);
+    }
   }
 
   if (q) {
@@ -574,12 +676,12 @@ async function listProductsPaged(env, url) {
     });
     if (labelKeys.length) {
       where.push(
-        `(name LIKE ? OR description LIKE ? OR category LIKE ? OR category IN (${labelKeys.map(() => '?').join(',')}))`,
+        `(name LIKE ? OR description LIKE ? OR category LIKE ? OR categories LIKE ? OR tags LIKE ? OR category IN (${labelKeys.map(() => '?').join(',')}))`,
       );
-      binds.push(like, like, like, ...labelKeys);
+      binds.push(like, like, like, like, like, ...labelKeys);
     } else {
-      where.push('(name LIKE ? OR description LIKE ? OR category LIKE ?)');
-      binds.push(like, like, like);
+      where.push('(name LIKE ? OR description LIKE ? OR category LIKE ? OR categories LIKE ? OR tags LIKE ?)');
+      binds.push(like, like, like, like, like);
     }
   }
 
@@ -715,7 +817,9 @@ async function handleApi(request, env) {
   if (path === '/api/marketing/run' && method === 'POST') {
     const body = await readJson(request);
     if (!(await requireAdminFn(env, body, request))) return json({ error: 'unauthorized' }, 401);
-    return json(await runMarketingCampaign(env));
+    const marketing = await runMarketingCampaign(env);
+    const expiry = await runCardExpiryReminders(env);
+    return json({ marketing, expiry });
   }
 
   if (path === '/api/marketing/unsubscribe' && method === 'POST') {
@@ -739,9 +843,10 @@ async function handleApi(request, env) {
     const body = await readJson(request);
     const id = body.id || randomId();
     const created = body.created_date || nowIso();
+    const meta = sanitizeProductMeta(body);
     await env.DB.prepare(
-      `INSERT INTO products (id, name, description, price, points_price, category, image_url, in_stock, created_date, updated_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (id, name, description, price, points_price, category, categories, tags, image_url, in_stock, created_date, updated_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         id,
@@ -749,7 +854,9 @@ async function handleApi(request, env) {
         body.description || '',
         Number(body.price) || 0,
         Number(body.points_price) || 0,
-        resolveProductCategory({ id, category: body.category }),
+        meta.category,
+        JSON.stringify(meta.categories),
+        JSON.stringify(meta.tags),
         body.image_url || '',
         body.in_stock === false ? 0 : 1,
         created,
@@ -775,8 +882,9 @@ async function handleApi(request, env) {
     const current = await env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(id).first();
     if (!current) return json({ error: 'not found' }, 404);
     const next = { ...current, ...body, id, updated_date: nowIso() };
+    const meta = sanitizeProductMeta(next);
     await env.DB.prepare(
-      `UPDATE products SET name=?, description=?, price=?, points_price=?, category=?, image_url=?, in_stock=?, updated_date=?
+      `UPDATE products SET name=?, description=?, price=?, points_price=?, category=?, categories=?, tags=?, image_url=?, in_stock=?, updated_date=?
        WHERE id=?`,
     )
       .bind(
@@ -784,7 +892,9 @@ async function handleApi(request, env) {
         next.description || '',
         Number(next.price) || 0,
         Number(next.points_price) || 0,
-        resolveProductCategory(next),
+        meta.category,
+        JSON.stringify(meta.categories),
+        JSON.stringify(meta.tags),
         next.image_url || '',
         next.in_stock === false || next.in_stock === 0 ? 0 : 1,
         next.updated_date,
@@ -803,9 +913,8 @@ async function handleApi(request, env) {
   }
 
   if (path === '/api/settings' && method === 'GET') {
-    const admin = await requireAdmin(request, env);
     const { results } = await env.DB.prepare('SELECT * FROM settings').all();
-    const rows = (results || []).filter((row) => admin || row.setting_key !== 'admin_password');
+    const rows = (results || []).filter((row) => row.setting_key !== 'admin_password');
     return json(rows);
   }
 
@@ -814,19 +923,27 @@ async function handleApi(request, env) {
     const body = await readJson(request);
     const key = String(body.setting_key || '');
     if (!key || key === 'catalog_hash') return json({ error: 'setting_key required' }, 400);
+    let value = String(body.setting_value ?? '');
+    if (key === 'admin_password') {
+      value = value.trim();
+      if (value.length < 4) return json({ error: 'Use at least 4 characters' }, 400);
+      value = await hashAdminPassword(value);
+    }
     const existing = await env.DB.prepare('SELECT * FROM settings WHERE setting_key = ?').bind(key).first();
     if (existing) {
       await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
-        .bind(String(body.setting_value ?? ''), key)
+        .bind(value, key)
         .run();
+      if (key === 'admin_password') return json({ setting_key: key, updated: true });
       const row = await env.DB.prepare('SELECT * FROM settings WHERE setting_key = ?').bind(key).first();
       return json(row);
     }
     const id = randomId();
     await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
-      .bind(key, String(body.setting_value ?? ''), id)
+      .bind(key, value, id)
       .run();
-    return json({ setting_key: key, setting_value: String(body.setting_value ?? ''), id }, 201);
+    if (key === 'admin_password') return json({ setting_key: key, updated: true }, 201);
+    return json({ setting_key: key, setting_value: value, id }, 201);
   }
 
   if (path === '/api/slides' && method === 'GET') {
@@ -883,8 +1000,20 @@ async function handleApi(request, env) {
       .bind('admin_password')
       .first();
     const adminPass = String(row?.setting_value || '1234').trim();
-    if (!password || password !== adminPass) {
-      return json({ error: 'Incorrect password. If you just moved to Cloudflare, try 1234 then change it in Settings.' }, 401);
+    if (!password || !(await adminPasswordMatches(adminPass, password))) {
+      return json({ error: 'Incorrect password' }, 401);
+    }
+    if (!adminPass.startsWith('pbkdf2$')) {
+      const hashed = await hashAdminPassword(password);
+      if (row) {
+        await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
+          .bind(hashed, 'admin_password')
+          .run();
+      } else {
+        await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
+          .bind('admin_password', hashed, randomId())
+          .run();
+      }
     }
     const token = randomToken();
     const id = randomId();
@@ -910,6 +1039,11 @@ async function handleApi(request, env) {
       const admin = await requireAdminFn(env, body, request);
       if (!admin) return json({ error: 'unauthorized' }, 401);
       return listPendingTransactions(env, body);
+    }
+    if (name === 'adminStats') {
+      const admin = await requireAdminFn(env, body, request);
+      if (!admin) return json({ error: 'unauthorized' }, 401);
+      return adminStats(env);
     }
     if (name === 'approveTransaction') {
       const admin = await requireAdminFn(env, body, request);
@@ -1009,6 +1143,13 @@ export default {
         await runMarketingCampaign(env);
       } catch (error) {
         console.error('[WinWin marketing] scheduled job failed', {
+          reason: String(error?.name || 'scheduled_error').slice(0, 60),
+        });
+      }
+      try {
+        await runCardExpiryReminders(env);
+      } catch (error) {
+        console.error('[WinWin loyalty] expiry reminder failed', {
           reason: String(error?.name || 'scheduled_error').slice(0, 60),
         });
       }

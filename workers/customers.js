@@ -30,6 +30,8 @@ const RESET_REQUEST_MESSAGE = 'If an account exists for this email, a password r
 const EMAIL_TIMEOUT_MS = 8000;
 const LOYALTY_BONUS_POINTS = 100;
 const EXPIRING_SOON_DAYS = 2;
+const EXPIRY_REMINDER_DAYS = 7;
+const EXPIRY_REMINDER_BATCH = 90;
 const LEBANON_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 function json(data, status = 200) {
@@ -1582,6 +1584,53 @@ async function adjustPoints(env, body, admin) {
   return json({ success: true, customer: publicCustomer(credited.customer) });
 }
 
+async function adjustWallet(env, body, admin) {
+  const customer = await getCustomer(env, String(body.customer_id || ''));
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  let amount = Number(body.amount);
+  if (body.mode === 'remove' || body.mode === 'deduct') amount = -Math.abs(amount);
+  amount = Math.round(amount * 100) / 100;
+  if (!Number.isFinite(amount) || amount === 0) return json({ error: 'Amount required' }, 400);
+  const current = Number(customer.wallet_balance) || 0;
+  const next = Math.round((current + amount) * 100) / 100;
+  if (next < 0) return json({ error: 'Balance cannot go below $0.00' }, 400);
+  const reason = String(body.reason || 'Admin wallet adjustment').trim() || 'Admin wallet adjustment';
+  await env.DB.prepare('UPDATE customers SET wallet_balance = ?, updated_date = ? WHERE id = ?')
+    .bind(next, nowIso(), customer.id)
+    .run();
+  await env.DB.prepare(
+    `INSERT INTO points_ledger (id, customer_id, points_amount, type, source, reason, idempotency_key, related_transaction_id, created_by_admin_id, created_date)
+     VALUES (?, ?, ?, 'WALLET_ADJUST', 'ADMIN', ?, ?, '', ?, ?)`,
+  )
+    .bind(randomId(), customer.id, Math.round(amount * 100), reason, `WALLET_ADJUST:${customer.id}:${randomId()}`, admin?.id || '', nowIso())
+    .run();
+  const fresh = await getCustomer(env, customer.id);
+  return json({ success: true, customer: publicCustomer(fresh) });
+}
+
+async function adjustDrawEntries(env, body, admin) {
+  const customer = await getCustomer(env, String(body.customer_id || ''));
+  if (!customer) return json({ error: 'Customer not found' }, 404);
+  let amount = Math.trunc(Number(body.amount));
+  if (body.mode === 'remove' || body.mode === 'deduct') amount = -Math.abs(amount);
+  if (!amount) return json({ error: 'Amount required' }, 400);
+  const current = Number(customer.draw_entries) || 0;
+  const next = current + amount;
+  if (next < 0) return json({ error: 'Draw entries cannot go below 0' }, 400);
+  const reason = String(body.reason || 'Admin draw adjustment').trim() || 'Admin draw adjustment';
+  await env.DB.prepare('UPDATE customers SET draw_entries = ?, updated_date = ? WHERE id = ?')
+    .bind(next, nowIso(), customer.id)
+    .run();
+  await env.DB.prepare(
+    `INSERT INTO points_ledger (id, customer_id, points_amount, type, source, reason, idempotency_key, related_transaction_id, created_by_admin_id, created_date)
+     VALUES (?, ?, ?, 'DRAW_ADJUST', 'ADMIN', ?, ?, '', ?, ?)`,
+  )
+    .bind(randomId(), customer.id, amount, reason, `DRAW_ADJUST:${customer.id}:${randomId()}`, admin?.id || '', nowIso())
+    .run();
+  const fresh = await getCustomer(env, customer.id);
+  return json({ success: true, customer: publicCustomer(fresh) });
+}
+
 async function adminUpdateCustomer(env, body) {
   const customer = await getCustomer(env, String(body.customer_id || body.id || ''));
   if (!customer) return json({ error: 'Customer not found' }, 404);
@@ -1595,12 +1644,8 @@ async function adminUpdateCustomer(env, body) {
   const ambassador_code = body.ambassador_code != null ? String(body.ambassador_code).trim() : customer.ambassador_code;
   const card_number = body.card_number != null ? String(body.card_number).trim() : customer.card_number;
   const is_ambassador = body.is_ambassador != null ? (body.is_ambassador ? 1 : 0) : (customer.is_ambassador ? 1 : 0);
-  const draw_entries = body.draw_entries != null
-    ? Math.max(0, Math.round(Number(body.draw_entries) || 0))
-    : Number(customer.draw_entries) || 0;
-  const wallet_balance = body.wallet_balance != null
-    ? Math.max(0, Number(body.wallet_balance) || 0)
-    : Number(customer.wallet_balance) || 0;
+  const draw_entries = Number(customer.draw_entries) || 0;
+  const wallet_balance = Number(customer.wallet_balance) || 0;
   await env.DB.prepare(
     `UPDATE customers SET full_name = ?, first_name = ?, last_name = ?, mobile = ?, mobile_normalized = ?,
       country = ?, ambassador_code = ?, card_number = ?, is_ambassador = ?, draw_entries = ?, wallet_balance = ?,
@@ -1744,7 +1789,92 @@ async function adminSendPasswordSetup(env, body) {
   const customer = await getCustomer(env, String(body.customer_id || ''));
   if (!customer) return json({ error: 'Customer not found' }, 404);
   const issued = await issueResetToken(env, customer);
-  return json({ success: true, setup_url: issued.link || '' });
+  return json({
+    success: true,
+    emailed: Boolean(issued.sent),
+    setup_url: issued.sent ? '' : (issued.link || ''),
+  });
+}
+
+function cardExpiryReminderCopy(customer, daysLeft) {
+  const name = escapeHtml(customer.first_name || customer.full_name || 'there');
+  const plainName = customer.first_name || customer.full_name || 'there';
+  const expiry = dateOnly(customer.card_expiry_date);
+  const when = daysLeft <= 0 ? 'today' : daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`;
+  const origin = 'https://winwinleb.com';
+  const cardUrl = `${origin}/winwin-card`;
+  const needsPassword = Boolean(customer.password_setup_required);
+  const passwordLine = needsPassword
+    ? `Your account was moved from the old shop and still needs a password. Set it here, then sign in: ${origin}/forgot-password`
+    : `Sign in to your account: ${origin}/my-account`;
+  const passwordHtml = needsPassword
+    ? `<p style="margin:16px 0 0;font-size:15px;line-height:24px;color:#6f625b;">Your account was moved from the old shop and still needs a password. <a href="${origin}/forgot-password" style="color:#9f1d35;">Set your password by email</a>, then sign in. Your card dates stay the same.</p>`
+    : `<p style="margin:16px 0 0;font-size:15px;line-height:24px;color:#6f625b;"><a href="${origin}/my-account" style="color:#9f1d35;">Open your account</a> to see the card.</p>`;
+  const subject = daysLeft <= 0
+    ? 'Your WinWin Card expires today'
+    : `Your WinWin Card expires ${when}`;
+  const text = `Hi ${plainName},
+
+Your WinWin Card expires ${when} (${expiry}). After that date, free delivery and the 15% member discount stop until the card is renewed.
+
+Renew the card: ${cardUrl}
+
+${passwordLine}
+
+The WinWin team`;
+  const html = `<!doctype html>
+<html lang="en"><body style="margin:0;padding:0;background:#faf6ef;font-family:Arial,Helvetica,sans-serif;color:#321a19;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#faf6ef;padding:32px 16px;"><tr><td align="center">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #eadfd2;border-radius:18px;overflow:hidden;">
+<tr><td align="center" style="background:#4b0d1a;padding:28px 24px;"><img src="https://winwinleb.com/logo_winwin.png" width="190" alt="WinWin" style="display:block;width:190px;max-width:70%;height:auto;border:0;" /></td></tr>
+<tr><td style="padding:36px;">
+<p style="margin:0 0 12px;font-size:16px;line-height:26px;">Hi ${name},</p>
+<h1 style="margin:0 0 16px;font-size:26px;line-height:34px;">Your WinWin Card expires ${escapeHtml(when)}</h1>
+<p style="margin:0;font-size:15px;line-height:25px;color:#6f625b;">The expiry date is <strong style="color:#321a19;">${escapeHtml(expiry)}</strong>. After that, free delivery and the 15% member discount stop until the card is renewed.</p>
+<p style="margin:26px 0 0;"><a href="${cardUrl}" style="display:inline-block;padding:14px 24px;background:#9f1d35;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:10px;">Renew the WinWin Card</a></p>
+${passwordHtml}
+</td></tr></table>
+<p style="margin:18px 0 0;font-size:12px;line-height:18px;color:#9a8d83;">This is an account email about your card. It is separate from optional WinWin updates.</p>
+</td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+
+export async function runCardExpiryReminders(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, first_name, full_name, email, email_status, card_expiry_date, password_setup_required, account_status
+     FROM customers
+     WHERE has_winwin_card = 1
+       AND card_renewal_reminder_sent = 0
+       AND card_expiry_date IS NOT NULL
+       AND card_expiry_date != ''
+       AND (account_status IS NULL OR account_status = '' OR account_status = 'active')`,
+  ).all();
+  const due = (results || []).filter((row) => {
+    const days = calendarDaysUntil(row.card_expiry_date);
+    return days != null && days >= 0 && days <= EXPIRY_REMINDER_DAYS
+      && row.email
+      && isValidEmail(row.email)
+      && (row.email_status === EMAIL_STATUS.VALID
+        || row.email_status === EMAIL_STATUS.UNVERIFIED
+        || row.email_status === EMAIL_STATUS.VERIFIED);
+  }).slice(0, EXPIRY_REMINDER_BATCH);
+
+  let sent = 0;
+  let failed = 0;
+  for (const row of due) {
+    const days = calendarDaysUntil(row.card_expiry_date);
+    const delivery = await sendEmail(env, { to: row.email, ...cardExpiryReminderCopy(row, days) });
+    if (!delivery.sent) {
+      failed += 1;
+      continue;
+    }
+    const claimed = await env.DB.prepare(
+      `UPDATE customers SET card_renewal_reminder_sent = 1, updated_date = ?
+       WHERE id = ? AND card_renewal_reminder_sent = 0 AND card_expiry_date = ?`,
+    ).bind(nowIso(), row.id, row.card_expiry_date).run();
+    if (Number(claimed.meta?.changes || 0) === 1) sent += 1;
+  }
+  return { due: due.length, sent, failed };
 }
 
 function classifyMembership(latest, now = new Date()) {
@@ -2088,6 +2218,16 @@ export async function handleCustomerFn(env, name, body, request) {
     const admin = await requireAdmin(env, body, request);
     if (!admin) return json({ error: 'unauthorized' }, 401);
     return adjustPoints(env, body, admin);
+  }
+  if (name === 'adjustWallet') {
+    const admin = await requireAdmin(env, body, request);
+    if (!admin) return json({ error: 'unauthorized' }, 401);
+    return adjustWallet(env, body, admin);
+  }
+  if (name === 'adjustDrawEntries') {
+    const admin = await requireAdmin(env, body, request);
+    if (!admin) return json({ error: 'unauthorized' }, 401);
+    return adjustDrawEntries(env, body, admin);
   }
   if (name === 'importLegacyCustomers') {
     if (!(await requireAdmin(env, body, request))) return json({ error: 'unauthorized' }, 401);

@@ -9,7 +9,7 @@ import QuantitySelector from '@/components/QuantitySelector';
 import EmptyState from '@/components/EmptyState';
 import { useCart } from '@/lib/cart';
 import { getCustomer, isCardActive } from '@/lib/customerAuth';
-import { categoryLabel } from '@/lib/categories';
+import { categoryLabel, productCategoryList, productTags } from '@/lib/categories';
 import { canRedeemProduct, formatPoints, pointsForPurchaseUsd, productPointsCost } from '@/lib/pointsTiers';
 import { openRedeemWhatsApp, redeemProductRequest } from '@/lib/redeemProduct';
 import { productImageSrc, productImageFallback } from '@/lib/productImage';
@@ -154,7 +154,20 @@ export default function Product() {
               </div>
 
               <div className="space-y-5">
-                <p className="text-caption uppercase tracking-wide">{categoryLabel(product.category)}</p>
+                <div className="flex flex-wrap gap-2">
+                  {productCategoryList(product).map((key) => (
+                    <Link key={key} to={`/?cat=${key}`} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-wide hover:text-primary">
+                      {categoryLabel(key)}
+                    </Link>
+                  ))}
+                </div>
+                {productTags(product).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {productTags(product).map((tag) => (
+                      <span key={tag} className="rounded-full border px-3 py-1 text-xs text-muted-foreground">{tag}</span>
+                    ))}
+                  </div>
+                )}
                 <h1 className="text-h1 leading-tight">{product.name}</h1>
                 <PriceDisplay price={product.price} hasCard={hasCard} />
                 <ProductPointsInfo product={product} customer={customer} />

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build-catalog.mjs && node scripts/generate-sitemap.mjs && node scripts/copy-product-images.mjs && vite build",
+    "build": "node scripts/copy-product-images.mjs && node scripts/convert-images-webp.mjs && node scripts/build-catalog.mjs && node scripts/generate-sitemap.mjs && vite build",
+    "images:webp": "node scripts/convert-images-webp.mjs",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
@@ -101,6 +102,7 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "globals": "^15.14.0",
     "postcss": "^8.5.3",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^6.1.0",

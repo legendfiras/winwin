@@ -6,7 +6,7 @@
     "price": 7,
     "points_price": 600,
     "category": "must_have",
-    "image_url": "/img/26cd1ed02_1002067203.jpg",
+    "image_url": "/img/26cd1ed02_1002067203.webp",
     "in_stock": true,
     "created_date": "2026-08-06T17:52:19.994000",
     "updated_date": "2026-08-06T17:52:19.994000"
@@ -18,7 +18,7 @@
     "price": 16,
     "points_price": 800,
     "category": "must_have",
-    "image_url": "/img/7b9e91f55_1002067205.jpg",
+    "image_url": "/img/7b9e91f55_1002067205.webp",
     "in_stock": true,
     "created_date": "2026-08-06T17:51:31.164000",
     "updated_date": "2026-08-06T17:51:31.164000"
@@ -30,7 +30,7 @@
     "price": 18,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/d5214dbbd_1002067207.jpg",
+    "image_url": "/img/d5214dbbd_1002067207.webp",
     "in_stock": true,
     "created_date": "2026-08-06T17:50:30.384000",
     "updated_date": "2026-08-06T17:50:30.384000"
@@ -42,7 +42,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "must_have",
-    "image_url": "/img/36d8b00cd_1002063426.jpg",
+    "image_url": "/img/36d8b00cd_1002063426.webp",
     "in_stock": true,
     "created_date": "2026-08-05T16:47:39.341000",
     "updated_date": "2026-08-05T16:47:39.341000"
@@ -54,7 +54,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/0fd9d8e61_1002063429.jpg",
+    "image_url": "/img/0fd9d8e61_1002063429.webp",
     "in_stock": true,
     "created_date": "2026-08-05T16:45:28.282000",
     "updated_date": "2026-08-05T16:45:28.282000"
@@ -66,7 +66,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "new_gadgets",
-    "image_url": "/img/40e3ead39_1002063374.jpg",
+    "image_url": "/img/40e3ead39_1002063374.webp",
     "in_stock": true,
     "created_date": "2026-08-05T16:39:37.841000",
     "updated_date": "2026-08-05T16:39:37.841000"
@@ -78,7 +78,7 @@
     "price": 55,
     "points_price": 2750,
     "category": "phone_accessories",
-    "image_url": "/img/cb15ed4fc_1002063394.jpg",
+    "image_url": "/img/cb15ed4fc_1002063394.webp",
     "in_stock": true,
     "created_date": "2026-08-05T16:38:46.862000",
     "updated_date": "2026-08-05T16:38:46.862000"
@@ -90,7 +90,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "phone_accessories",
-    "image_url": "/img/9a684c4cc_1002063391.jpg",
+    "image_url": "/img/9a684c4cc_1002063391.webp",
     "in_stock": true,
     "created_date": "2026-08-05T16:37:50.976000",
     "updated_date": "2026-08-05T16:37:50.976000"
@@ -102,7 +102,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "new_gadgets",
-    "image_url": "/img/15345d59f_1002062205.jpg",
+    "image_url": "/img/15345d59f_1002062205.webp",
     "in_stock": true,
     "created_date": "2026-08-05T12:28:36.417000",
     "updated_date": "2026-08-05T12:28:36.417000"
@@ -114,7 +114,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "new_gadgets",
-    "image_url": "/img/df56ba8a2_1002062202.jpg",
+    "image_url": "/img/df56ba8a2_1002062202.webp",
     "in_stock": true,
     "created_date": "2026-08-05T12:28:04.075000",
     "updated_date": "2026-08-05T12:28:04.075000"
@@ -126,7 +126,7 @@
     "price": 45,
     "points_price": 2500,
     "category": "new_gadgets",
-    "image_url": "/img/efa7d4d9e_1002062199.jpg",
+    "image_url": "/img/efa7d4d9e_1002062199.webp",
     "in_stock": true,
     "created_date": "2026-08-05T12:25:48.772000",
     "updated_date": "2026-08-05T12:25:48.772000"
@@ -138,7 +138,7 @@
     "price": 45,
     "points_price": 2500,
     "category": "new_gadgets",
-    "image_url": "/img/06ff5bdd7_1002062191.jpg",
+    "image_url": "/img/06ff5bdd7_1002062191.webp",
     "in_stock": true,
     "created_date": "2026-08-05T12:24:05.135000",
     "updated_date": "2026-08-05T12:24:32.822000"
@@ -150,7 +150,7 @@
     "price": 20,
     "points_price": 1000,
     "category": "home_appliance",
-    "image_url": "/img/1a52fb0fe_1002059517.jpg",
+    "image_url": "/img/1a52fb0fe_1002059517.webp",
     "in_stock": true,
     "created_date": "2026-08-05T08:16:34.826000",
     "updated_date": "2026-08-05T08:16:34.826000"
@@ -162,7 +162,7 @@
     "price": 5,
     "points_price": 250,
     "category": "new_gadgets",
-    "image_url": "/img/0d01677a7_1002059519.jpg",
+    "image_url": "/img/0d01677a7_1002059519.webp",
     "in_stock": true,
     "created_date": "2026-08-05T08:14:23.011000",
     "updated_date": "2026-08-05T08:14:23.011000"
@@ -174,7 +174,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "beauty_care",
-    "image_url": "/img/a8c98b976_1002059536.jpg",
+    "image_url": "/img/a8c98b976_1002059536.webp",
     "in_stock": true,
     "created_date": "2026-08-04T17:56:03.805000",
     "updated_date": "2026-08-04T17:56:03.805000"
@@ -186,7 +186,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/d98e3b36a_1002059544.jpg",
+    "image_url": "/img/d98e3b36a_1002059544.webp",
     "in_stock": true,
     "created_date": "2026-08-04T17:50:50.148000",
     "updated_date": "2026-08-04T17:50:50.148000"
@@ -198,7 +198,7 @@
     "price": 20,
     "points_price": 1000,
     "category": "home_appliance",
-    "image_url": "/img/8d0386d55_1002059585.jpg",
+    "image_url": "/img/8d0386d55_1002059585.webp",
     "in_stock": true,
     "created_date": "2026-08-04T17:20:16.376000",
     "updated_date": "2026-08-04T17:20:16.376000"
@@ -210,7 +210,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_appliance",
-    "image_url": "/img/93cecfe45_1002059591.jpg",
+    "image_url": "/img/93cecfe45_1002059591.webp",
     "in_stock": true,
     "created_date": "2026-08-04T17:18:24.985000",
     "updated_date": "2026-08-04T17:18:24.985000"
@@ -222,7 +222,7 @@
     "price": 7,
     "points_price": 600,
     "category": "new_gadgets",
-    "image_url": "/img/a602a740d_1002059612.jpg",
+    "image_url": "/img/a602a740d_1002059612.webp",
     "in_stock": true,
     "created_date": "2026-08-04T17:17:07.406000",
     "updated_date": "2026-08-04T17:17:07.406000"
@@ -234,7 +234,7 @@
     "price": 5,
     "points_price": 250,
     "category": "must_have",
-    "image_url": "/img/e955c2c68_1002059359.jpg",
+    "image_url": "/img/e955c2c68_1002059359.webp",
     "in_stock": true,
     "created_date": "2026-08-04T15:53:03.978000",
     "updated_date": "2026-08-04T15:53:03.978000"
@@ -258,7 +258,7 @@
     "price": 15,
     "points_price": 750,
     "category": "fans",
-    "image_url": "/img/126e623b3_1002059167.jpg",
+    "image_url": "/img/126e623b3_1002059167.webp",
     "in_stock": true,
     "created_date": "2026-08-04T15:29:04.814000",
     "updated_date": "2026-08-04T15:29:04.814000"
@@ -270,7 +270,7 @@
     "price": 8,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/a28254b94_1002059141.jpg",
+    "image_url": "/img/a28254b94_1002059141.webp",
     "in_stock": true,
     "created_date": "2026-08-04T15:13:52.978000",
     "updated_date": "2026-08-04T15:13:52.978000"
@@ -282,7 +282,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/b6b14e1b3_1002059136.jpg",
+    "image_url": "/img/b6b14e1b3_1002059136.webp",
     "in_stock": true,
     "created_date": "2026-08-04T15:07:13.847000",
     "updated_date": "2026-08-04T15:07:13.847000"
@@ -294,7 +294,7 @@
     "price": 15,
     "points_price": 750,
     "category": "toys",
-    "image_url": "/img/31b18ec84_1002028096.png",
+    "image_url": "/img/31b18ec84_1002028096.webp",
     "in_stock": true,
     "created_date": "2026-07-26T18:05:40.771000",
     "updated_date": "2026-07-26T18:05:40.771000"
@@ -306,7 +306,7 @@
     "price": 25,
     "points_price": 1750,
     "category": "new_gadgets",
-    "image_url": "/img/4c4a20ee1_1002027276.png",
+    "image_url": "/img/4c4a20ee1_1002027276.webp",
     "in_stock": true,
     "created_date": "2026-07-26T09:55:57.995000",
     "updated_date": "2026-07-26T09:55:57.995000"
@@ -318,7 +318,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/dcbb0199a_1002027269.png",
+    "image_url": "/img/dcbb0199a_1002027269.webp",
     "in_stock": true,
     "created_date": "2026-07-26T09:54:03.638000",
     "updated_date": "2026-07-26T09:54:03.638000"
@@ -330,7 +330,7 @@
     "price": 25,
     "points_price": 1750,
     "category": "new_gadgets",
-    "image_url": "/img/74f31fc3f_1002027268.png",
+    "image_url": "/img/74f31fc3f_1002027268.webp",
     "in_stock": true,
     "created_date": "2026-07-26T09:53:15.501000",
     "updated_date": "2026-07-26T09:53:15.501000"
@@ -342,7 +342,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "home_essentials",
-    "image_url": "/img/dd18f7fcd_1002025855.png",
+    "image_url": "/img/dd18f7fcd_1002025855.webp",
     "in_stock": true,
     "created_date": "2026-07-25T20:11:12.075000",
     "updated_date": "2026-08-06T09:49:50.074000"
@@ -354,7 +354,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/afeaafe7f_1002024768.jpg",
+    "image_url": "/img/afeaafe7f_1002024768.webp",
     "in_stock": true,
     "created_date": "2026-07-25T20:08:30.986000",
     "updated_date": "2026-07-25T20:08:30.986000"
@@ -366,7 +366,7 @@
     "price": 12,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/e65feaabf_1002025847.png",
+    "image_url": "/img/e65feaabf_1002025847.webp",
     "in_stock": true,
     "created_date": "2026-07-25T20:06:29.084000",
     "updated_date": "2026-07-25T20:06:29.084000"
@@ -378,7 +378,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "new_gadgets",
-    "image_url": "/img/e3b3abf26_1001959806.jpg",
+    "image_url": "/img/e3b3abf26_1001959806.webp",
     "in_stock": true,
     "created_date": "2026-07-25T19:20:37.283000",
     "updated_date": "2026-07-25T20:06:42.114000"
@@ -390,7 +390,7 @@
     "price": 40,
     "points_price": 2000,
     "category": "beauty_care",
-    "image_url": "/img/13a03b4c8_1002000381.jpg",
+    "image_url": "/img/13a03b4c8_1002000381.webp",
     "in_stock": true,
     "created_date": "2026-07-17T19:28:57.511000",
     "updated_date": "2026-07-17T19:28:57.511000"
@@ -402,7 +402,7 @@
     "price": 50,
     "points_price": 2500,
     "category": "beauty_care",
-    "image_url": "/img/9f05dd02d_1002000380.jpg",
+    "image_url": "/img/9f05dd02d_1002000380.webp",
     "in_stock": true,
     "created_date": "2026-07-17T19:27:44.044000",
     "updated_date": "2026-07-17T19:27:44.044000"
@@ -414,7 +414,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "new_gadgets",
-    "image_url": "/img/b9de18d0f_1002000379.jpg",
+    "image_url": "/img/b9de18d0f_1002000379.webp",
     "in_stock": true,
     "created_date": "2026-07-17T19:21:42.924000",
     "updated_date": "2026-07-17T19:21:42.924000"
@@ -426,7 +426,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "new_gadgets",
-    "image_url": "/img/411e84689_1002000377.jpg",
+    "image_url": "/img/411e84689_1002000377.webp",
     "in_stock": true,
     "created_date": "2026-07-17T19:20:29.246000",
     "updated_date": "2026-07-17T19:20:29.246000"
@@ -438,7 +438,7 @@
     "price": 50,
     "points_price": 2500,
     "category": "new_gadgets",
-    "image_url": "/img/af59ebc2b_1002000375.jpg",
+    "image_url": "/img/af59ebc2b_1002000375.webp",
     "in_stock": true,
     "created_date": "2026-07-17T19:18:50.007000",
     "updated_date": "2026-07-18T19:00:13.753000"
@@ -450,7 +450,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/aba36e367_1001902210.jpg",
+    "image_url": "/img/aba36e367_1001902210.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:47:35.102000",
     "updated_date": "2026-07-17T18:47:35.102000"
@@ -462,7 +462,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/06c52ae10_1001900346.jpg",
+    "image_url": "/img/06c52ae10_1001900346.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:46:39.829000",
     "updated_date": "2026-07-17T18:46:39.829000"
@@ -474,7 +474,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/7ab130271_1001999062.jpg",
+    "image_url": "/img/7ab130271_1001999062.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:44:58.909000",
     "updated_date": "2026-07-17T18:44:58.909000"
@@ -486,7 +486,7 @@
     "price": 5,
     "points_price": 250,
     "category": "must_have",
-    "image_url": "/img/87f82ae49_1001900326.jpg",
+    "image_url": "/img/87f82ae49_1001900326.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:43:34.203000",
     "updated_date": "2026-07-17T18:43:34.203000"
@@ -498,7 +498,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "home_essentials",
-    "image_url": "/img/bfd0041ac_1001895213.jpg",
+    "image_url": "/img/bfd0041ac_1001895213.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:42:23.332000",
     "updated_date": "2026-07-17T18:42:23.332000"
@@ -510,7 +510,7 @@
     "price": 6,
     "points_price": 350,
     "category": "new_gadgets",
-    "image_url": "/img/d6322bd25_1001999060.jpg",
+    "image_url": "/img/d6322bd25_1001999060.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:41:11.629000",
     "updated_date": "2026-07-17T18:41:11.629000"
@@ -522,7 +522,7 @@
     "price": 12,
     "points_price": 750,
     "category": "beauty_care",
-    "image_url": "/img/8ab2f1c92_1001962390.jpg",
+    "image_url": "/img/8ab2f1c92_1001962390.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:40:15.415000",
     "updated_date": "2026-07-17T18:40:15.415000"
@@ -534,7 +534,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/5cc2b8fc7_1001892372.jpg",
+    "image_url": "/img/5cc2b8fc7_1001892372.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:39:16.113000",
     "updated_date": "2026-07-17T18:39:16.113000"
@@ -546,7 +546,7 @@
     "price": 12,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/0b4b06740_1001892369.jpg",
+    "image_url": "/img/0b4b06740_1001892369.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:38:10.476000",
     "updated_date": "2026-07-17T18:38:10.476000"
@@ -558,7 +558,7 @@
     "price": 7,
     "points_price": 350,
     "category": "must_have",
-    "image_url": "/img/c0ebc6a5f_1001993443.jpg",
+    "image_url": "/img/c0ebc6a5f_1001993443.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:37:01.132000",
     "updated_date": "2026-07-17T18:37:01.132000"
@@ -570,7 +570,7 @@
     "price": 5,
     "points_price": 250,
     "category": "must_have",
-    "image_url": "/img/bc1e49eff_1001892357.jpg",
+    "image_url": "/img/bc1e49eff_1001892357.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:30:18.856000",
     "updated_date": "2026-07-17T18:30:18.856000"
@@ -582,7 +582,7 @@
     "price": 12,
     "points_price": 650,
     "category": "home_essentials",
-    "image_url": "/img/e45789f2a_1001892354.jpg",
+    "image_url": "/img/e45789f2a_1001892354.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:29:15.559000",
     "updated_date": "2026-07-17T18:29:15.559000"
@@ -594,7 +594,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/fc0d9b7c4_1001892349.jpg",
+    "image_url": "/img/fc0d9b7c4_1001892349.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:27:53.899000",
     "updated_date": "2026-07-17T18:27:53.899000"
@@ -606,7 +606,7 @@
     "price": 5,
     "points_price": 250,
     "category": "must_have",
-    "image_url": "/img/93e6dbd1d_1001889924.jpg",
+    "image_url": "/img/93e6dbd1d_1001889924.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:26:39.081000",
     "updated_date": "2026-07-17T18:26:39.081000"
@@ -618,7 +618,7 @@
     "price": 10,
     "points_price": 500,
     "category": "beauty_care",
-    "image_url": "/img/1f9f981b9_1001889921.jpg",
+    "image_url": "/img/1f9f981b9_1001889921.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:25:25.296000",
     "updated_date": "2026-07-17T18:25:25.296000"
@@ -630,7 +630,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/f9d9e9877_1001889898.jpg",
+    "image_url": "/img/f9d9e9877_1001889898.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:23:48.476000",
     "updated_date": "2026-07-17T18:23:48.476000"
@@ -642,7 +642,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/b9dca3cca_1001889892.jpg",
+    "image_url": "/img/b9dca3cca_1001889892.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:22:19.208000",
     "updated_date": "2026-07-17T18:22:19.208000"
@@ -654,7 +654,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/09ae8c712_1001999058.jpg",
+    "image_url": "/img/09ae8c712_1001999058.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:21:08.151000",
     "updated_date": "2026-07-17T18:21:08.151000"
@@ -666,7 +666,7 @@
     "price": 5,
     "points_price": 250,
     "category": "new_gadgets",
-    "image_url": "/img/5c0d27b40_1001999056.jpg",
+    "image_url": "/img/5c0d27b40_1001999056.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:20:04.416000",
     "updated_date": "2026-07-17T18:20:04.416000"
@@ -678,7 +678,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/b7f562d07_1001887527.jpg",
+    "image_url": "/img/b7f562d07_1001887527.webp",
     "in_stock": true,
     "created_date": "2026-07-17T18:18:42.407000",
     "updated_date": "2026-07-17T18:18:42.407000"
@@ -690,7 +690,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "fans",
-    "image_url": "/img/3f31c1ec6_1001963807.png",
+    "image_url": "/img/3f31c1ec6_1001963807.webp",
     "in_stock": true,
     "created_date": "2026-07-07T18:52:50.295000",
     "updated_date": "2026-07-07T18:52:50.295000"
@@ -702,7 +702,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "new_gadgets",
-    "image_url": "/img/29d0d2f6d_1001963415.png",
+    "image_url": "/img/29d0d2f6d_1001963415.webp",
     "in_stock": true,
     "created_date": "2026-07-07T18:51:13.511000",
     "updated_date": "2026-07-07T18:51:13.511000"
@@ -714,7 +714,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/d4a25d830_1001963978.png",
+    "image_url": "/img/d4a25d830_1001963978.webp",
     "in_stock": true,
     "created_date": "2026-07-07T18:48:47.458000",
     "updated_date": "2026-07-07T18:48:47.458000"
@@ -726,7 +726,7 @@
     "price": 20,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/740675f2b_1001933925.jpg",
+    "image_url": "/img/740675f2b_1001933925.webp",
     "in_stock": true,
     "created_date": "2026-07-07T18:47:04.505000",
     "updated_date": "2026-07-07T18:47:04.505000"
@@ -738,7 +738,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "beauty_care",
-    "image_url": "/img/aa03fb016_1001942214.jpg",
+    "image_url": "/img/aa03fb016_1001942214.webp",
     "in_stock": true,
     "created_date": "2026-07-07T18:14:29.024000",
     "updated_date": "2026-07-18T19:01:04.516000"
@@ -750,7 +750,7 @@
     "price": 10,
     "points_price": 500,
     "category": "toys",
-    "image_url": "/img/8ba8b2283_1001944227.jpg",
+    "image_url": "/img/8ba8b2283_1001944227.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:59:29.126000",
     "updated_date": "2026-07-04T15:32:39.859000"
@@ -774,7 +774,7 @@
     "price": 30,
     "points_price": 1500,
     "category": "must_have",
-    "image_url": "/img/2afbd07b5_1001955987.png",
+    "image_url": "/img/2afbd07b5_1001955987.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:51:11.201000",
     "updated_date": "2026-07-01T21:51:11.201000"
@@ -786,7 +786,7 @@
     "price": 15,
     "points_price": 750,
     "category": "toys",
-    "image_url": "/img/dced60d00_1001940311.jpg",
+    "image_url": "/img/dced60d00_1001940311.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:43:54.074000",
     "updated_date": "2026-07-01T21:43:54.074000"
@@ -798,7 +798,7 @@
     "price": 15,
     "points_price": 750,
     "category": "toys",
-    "image_url": "/img/e170905ef_1001940317.jpg",
+    "image_url": "/img/e170905ef_1001940317.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:42:26.717000",
     "updated_date": "2026-07-01T21:42:26.717000"
@@ -810,7 +810,7 @@
     "price": 30,
     "points_price": 1500,
     "category": "new_gadgets",
-    "image_url": "/img/ebb81c128_1001946349.jpg",
+    "image_url": "/img/ebb81c128_1001946349.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:40:34.589000",
     "updated_date": "2026-07-01T21:40:34.589000"
@@ -822,7 +822,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "shavers",
-    "image_url": "/img/0ac2aa419_1001947673.jpg",
+    "image_url": "/img/0ac2aa419_1001947673.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:38:29.379000",
     "updated_date": "2026-07-01T21:38:29.379000"
@@ -834,7 +834,7 @@
     "price": 69,
     "points_price": 3500,
     "category": "new_gadgets",
-    "image_url": "/img/ba5221527_1001946357.jpg",
+    "image_url": "/img/ba5221527_1001946357.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:36:28.032000",
     "updated_date": "2026-07-01T21:36:28.032000"
@@ -846,7 +846,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "shavers",
-    "image_url": "/img/521fdf46e_1001947670.jpg",
+    "image_url": "/img/521fdf46e_1001947670.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:33:17.450000",
     "updated_date": "2026-07-01T21:55:14.091000"
@@ -858,7 +858,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/c34d2dda1_1001879019.jpg",
+    "image_url": "/img/c34d2dda1_1001879019.webp",
     "in_stock": true,
     "created_date": "2026-07-01T21:29:11.129000",
     "updated_date": "2026-07-01T21:29:11.129000"
@@ -870,7 +870,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "fans",
-    "image_url": "/img/b8c73bf6a_1001926762.jpg",
+    "image_url": "/img/b8c73bf6a_1001926762.webp",
     "in_stock": true,
     "created_date": "2026-07-01T20:16:34.004000",
     "updated_date": "2026-07-01T20:16:34.004000"
@@ -882,7 +882,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "shavers",
-    "image_url": "/img/e8a177536_1001947636.jpg",
+    "image_url": "/img/e8a177536_1001947636.webp",
     "in_stock": true,
     "created_date": "2026-06-28T19:05:08.482000",
     "updated_date": "2026-06-28T19:05:08.482000"
@@ -894,7 +894,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/a08536e3b_1001938015.jpg",
+    "image_url": "/img/a08536e3b_1001938015.webp",
     "in_stock": true,
     "created_date": "2026-06-24T19:29:14.948000",
     "updated_date": "2026-06-24T19:29:14.948000"
@@ -906,7 +906,7 @@
     "price": 10,
     "points_price": 600,
     "category": "beauty_care",
-    "image_url": "/img/5f65dbcb3_1001938037.jpg",
+    "image_url": "/img/5f65dbcb3_1001938037.webp",
     "in_stock": true,
     "created_date": "2026-06-24T19:28:07.544000",
     "updated_date": "2026-06-24T19:28:07.544000"
@@ -918,7 +918,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/130efc03f_1001938088.jpg",
+    "image_url": "/img/130efc03f_1001938088.webp",
     "in_stock": true,
     "created_date": "2026-06-24T19:26:40.217000",
     "updated_date": "2026-06-24T19:26:40.217000"
@@ -930,7 +930,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "beauty_care",
-    "image_url": "/img/d4e33561d_1001938318.jpg",
+    "image_url": "/img/d4e33561d_1001938318.webp",
     "in_stock": true,
     "created_date": "2026-06-24T19:21:50.182000",
     "updated_date": "2026-06-24T19:21:50.182000"
@@ -942,7 +942,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/0f10b1df6_1001938564.jpg",
+    "image_url": "/img/0f10b1df6_1001938564.webp",
     "in_stock": true,
     "created_date": "2026-06-24T19:20:04.078000",
     "updated_date": "2026-06-24T19:20:04.078000"
@@ -954,7 +954,7 @@
     "price": 33,
     "points_price": 1750,
     "category": "phone_accessories",
-    "image_url": "/img/1e296a9ea_1001932803.jpg",
+    "image_url": "/img/1e296a9ea_1001932803.webp",
     "in_stock": true,
     "created_date": "2026-06-22T05:12:57.514000",
     "updated_date": "2026-06-22T05:12:57.514000"
@@ -966,7 +966,7 @@
     "price": 20,
     "points_price": 1000,
     "category": "phone_accessories",
-    "image_url": "/img/821f2cc0f_1001932397.jpg",
+    "image_url": "/img/821f2cc0f_1001932397.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:50:26.845000",
     "updated_date": "2026-06-21T21:50:26.845000"
@@ -978,7 +978,7 @@
     "price": 12,
     "points_price": 750,
     "category": "phone_accessories",
-    "image_url": "/img/b05c22d1b_1001932394.jpg",
+    "image_url": "/img/b05c22d1b_1001932394.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:48:37.730000",
     "updated_date": "2026-06-21T21:48:37.730000"
@@ -990,7 +990,7 @@
     "price": 12,
     "points_price": 750,
     "category": "phone_accessories",
-    "image_url": "/img/30b45fd29_1001932395.jpg",
+    "image_url": "/img/30b45fd29_1001932395.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:47:17.330000",
     "updated_date": "2026-06-21T21:47:17.330000"
@@ -1002,7 +1002,7 @@
     "price": 7,
     "points_price": 500,
     "category": "phone_accessories",
-    "image_url": "/img/01196db3a_1001932396.png",
+    "image_url": "/img/01196db3a_1001932396.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:42:40.290000",
     "updated_date": "2026-06-21T21:45:26.783000"
@@ -1014,7 +1014,7 @@
     "price": 20,
     "points_price": 1000,
     "category": "phone_accessories",
-    "image_url": "/img/be177c508_1001932391.png",
+    "image_url": "/img/be177c508_1001932391.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:40:39.991000",
     "updated_date": "2026-06-21T21:40:39.991000"
@@ -1026,7 +1026,7 @@
     "price": 29,
     "points_price": 1500,
     "category": "phone_accessories",
-    "image_url": "/img/06bcccedc_1001932390.jpg",
+    "image_url": "/img/06bcccedc_1001932390.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:38:49.658000",
     "updated_date": "2026-06-21T21:38:49.658000"
@@ -1038,7 +1038,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "phone_accessories",
-    "image_url": "/img/2b57db550_1001932375.png",
+    "image_url": "/img/2b57db550_1001932375.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:34:23.163000",
     "updated_date": "2026-06-21T21:34:23.163000"
@@ -1050,7 +1050,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "phone_accessories",
-    "image_url": "/img/31880c8fb_1001932374.jpg",
+    "image_url": "/img/31880c8fb_1001932374.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:31:03.823000",
     "updated_date": "2026-06-21T21:31:03.823000"
@@ -1062,7 +1062,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "phone_accessories",
-    "image_url": "/img/7c40c45bb_1001932373.jpg",
+    "image_url": "/img/7c40c45bb_1001932373.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:29:29.836000",
     "updated_date": "2026-06-21T21:29:29.836000"
@@ -1086,7 +1086,7 @@
     "price": 40,
     "points_price": 2000,
     "category": "phone_accessories",
-    "image_url": "/img/1f29e928e_1001932368.jpg",
+    "image_url": "/img/1f29e928e_1001932368.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:22:29.050000",
     "updated_date": "2026-06-21T21:22:29.050000"
@@ -1098,7 +1098,7 @@
     "price": 30,
     "points_price": 1500,
     "category": "phone_accessories",
-    "image_url": "/img/85863191e_1001932368.jpg",
+    "image_url": "/img/85863191e_1001932368.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:21:23.564000",
     "updated_date": "2026-06-21T21:21:23.564000"
@@ -1110,7 +1110,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "phone_accessories",
-    "image_url": "/img/33907be1b_1001932368.jpg",
+    "image_url": "/img/33907be1b_1001932368.webp",
     "in_stock": true,
     "created_date": "2026-06-21T21:18:38.993000",
     "updated_date": "2026-06-21T21:18:38.993000"
@@ -1122,7 +1122,7 @@
     "price": 10,
     "points_price": 500,
     "category": "home_appliance",
-    "image_url": "/img/85e8a9c57_1001916927.jpg",
+    "image_url": "/img/85e8a9c57_1001916927.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:12:14.006000",
     "updated_date": "2026-06-19T22:31:07.420000"
@@ -1134,7 +1134,7 @@
     "price": 29,
     "points_price": 1500,
     "category": "home_essentials",
-    "image_url": "/img/b1960a1db_1001922056.jpg",
+    "image_url": "/img/b1960a1db_1001922056.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:10:52.529000",
     "updated_date": "2026-06-19T00:10:52.529000"
@@ -1146,7 +1146,7 @@
     "price": 33,
     "points_price": 1750,
     "category": "must_have",
-    "image_url": "/img/95f9b4798_1001922010.jpg",
+    "image_url": "/img/95f9b4798_1001922010.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:09:26.419000",
     "updated_date": "2026-06-19T00:09:26.419000"
@@ -1158,7 +1158,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/c36bde1d9_1001922050.jpg",
+    "image_url": "/img/c36bde1d9_1001922050.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:07:58.842000",
     "updated_date": "2026-06-19T00:07:58.842000"
@@ -1170,7 +1170,7 @@
     "price": 8,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/80009426d_1001922041.jpg",
+    "image_url": "/img/80009426d_1001922041.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:06:41.990000",
     "updated_date": "2026-06-19T00:06:41.990000"
@@ -1182,7 +1182,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/449c1ab7e_1001922452.jpg",
+    "image_url": "/img/449c1ab7e_1001922452.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:04:30.442000",
     "updated_date": "2026-06-19T00:04:30.442000"
@@ -1194,7 +1194,7 @@
     "price": 5,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/666ccdd04_1001922455.jpg",
+    "image_url": "/img/666ccdd04_1001922455.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:02:32.807000",
     "updated_date": "2026-06-19T00:02:32.807000"
@@ -1206,7 +1206,7 @@
     "price": 12,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/8c56eab27_1001922446.jpg",
+    "image_url": "/img/8c56eab27_1001922446.webp",
     "in_stock": true,
     "created_date": "2026-06-19T00:01:34.705000",
     "updated_date": "2026-06-19T00:01:34.705000"
@@ -1218,7 +1218,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/ee4bb2a98_1001923956.jpg",
+    "image_url": "/img/ee4bb2a98_1001923956.webp",
     "in_stock": true,
     "created_date": "2026-06-18T23:59:33.295000",
     "updated_date": "2026-06-18T23:59:33.295000"
@@ -1230,7 +1230,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "home_essentials",
-    "image_url": "/img/04e512833_1001923949.jpg",
+    "image_url": "/img/04e512833_1001923949.webp",
     "in_stock": true,
     "created_date": "2026-06-18T23:58:18.190000",
     "updated_date": "2026-06-18T23:58:18.190000"
@@ -1242,7 +1242,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/f05eec5ec_1001916913.jpg",
+    "image_url": "/img/f05eec5ec_1001916913.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:51:00.394000",
     "updated_date": "2026-06-16T23:51:00.394000"
@@ -1254,7 +1254,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/3593e71ac_1001916930.jpg",
+    "image_url": "/img/3593e71ac_1001916930.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:49:11.114000",
     "updated_date": "2026-06-16T23:49:11.114000"
@@ -1266,7 +1266,7 @@
     "price": 10,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/7711c96f5_1001919759.jpg",
+    "image_url": "/img/7711c96f5_1001919759.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:46:40.697000",
     "updated_date": "2026-06-17T14:19:53.148000"
@@ -1278,7 +1278,7 @@
     "price": 6,
     "points_price": 500,
     "category": "home_essentials",
-    "image_url": "/img/5a044ad19_1001921274.jpg",
+    "image_url": "/img/5a044ad19_1001921274.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:44:03.445000",
     "updated_date": "2026-06-16T23:44:34.731000"
@@ -1290,7 +1290,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/03a69b8f3_1001921272.jpg",
+    "image_url": "/img/03a69b8f3_1001921272.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:41:59.772000",
     "updated_date": "2026-06-16T23:41:59.772000"
@@ -1302,7 +1302,7 @@
     "price": 29,
     "points_price": 1500,
     "category": "home_essentials",
-    "image_url": "/img/3b70b529e_1001919774.jpg",
+    "image_url": "/img/3b70b529e_1001919774.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:39:33.198000",
     "updated_date": "2026-06-16T23:39:33.198000"
@@ -1314,7 +1314,7 @@
     "price": 5,
     "points_price": 500,
     "category": "beauty_care",
-    "image_url": "/img/b86fff167_1001919771.jpg",
+    "image_url": "/img/b86fff167_1001919771.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:37:04.571000",
     "updated_date": "2026-06-16T23:37:04.571000"
@@ -1326,7 +1326,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/442d11ecb_1001916936.jpg",
+    "image_url": "/img/442d11ecb_1001916936.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:35:12.187000",
     "updated_date": "2026-06-16T23:35:12.187000"
@@ -1338,7 +1338,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/3c28c188c_1001916921.jpg",
+    "image_url": "/img/3c28c188c_1001916921.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:33:41.510000",
     "updated_date": "2026-06-16T23:33:41.510000"
@@ -1350,7 +1350,7 @@
     "price": 8,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/c9dc406f5_1001916942.jpg",
+    "image_url": "/img/c9dc406f5_1001916942.webp",
     "in_stock": true,
     "created_date": "2026-06-16T23:30:44.477000",
     "updated_date": "2026-06-16T23:30:44.477000"
@@ -1362,7 +1362,7 @@
     "price": 6,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/f97ed94a6_1001906595.png",
+    "image_url": "/img/f97ed94a6_1001906595.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:42:46.373000",
     "updated_date": "2026-06-10T21:42:46.373000"
@@ -1374,7 +1374,7 @@
     "price": 22,
     "points_price": 1300,
     "category": "new_gadgets",
-    "image_url": "/img/a054a1757_1001906614.png",
+    "image_url": "/img/a054a1757_1001906614.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:41:44.681000",
     "updated_date": "2026-06-10T21:41:44.681000"
@@ -1386,7 +1386,7 @@
     "price": 6,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/f2a81420c_1001906615.png",
+    "image_url": "/img/f2a81420c_1001906615.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:40:33.956000",
     "updated_date": "2026-06-10T21:40:33.956000"
@@ -1398,7 +1398,7 @@
     "price": 6,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/4fc9101d1_1001906619.png",
+    "image_url": "/img/4fc9101d1_1001906619.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:39:26.944000",
     "updated_date": "2026-06-10T21:39:26.944000"
@@ -1410,7 +1410,7 @@
     "price": 8,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/949ac8db7_1001906620.png",
+    "image_url": "/img/949ac8db7_1001906620.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:37:57.920000",
     "updated_date": "2026-06-10T21:37:57.920000"
@@ -1422,7 +1422,7 @@
     "price": 12,
     "points_price": 600,
     "category": "must_have",
-    "image_url": "/img/cf7ed898e_1001906627.png",
+    "image_url": "/img/cf7ed898e_1001906627.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:37:06.981000",
     "updated_date": "2026-06-10T21:37:06.981000"
@@ -1434,7 +1434,7 @@
     "price": 25,
     "points_price": 1500,
     "category": "must_have",
-    "image_url": "/img/3864e4f2f_1001906628.png",
+    "image_url": "/img/3864e4f2f_1001906628.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:36:10.174000",
     "updated_date": "2026-06-10T21:36:10.174000"
@@ -1446,7 +1446,7 @@
     "price": 33,
     "points_price": 1750,
     "category": "must_have",
-    "image_url": "/img/9ba2e6b74_1001906629.png",
+    "image_url": "/img/9ba2e6b74_1001906629.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:34:38.997000",
     "updated_date": "2026-06-10T21:34:38.997000"
@@ -1458,7 +1458,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/aa0565827_1001906636.png",
+    "image_url": "/img/aa0565827_1001906636.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:33:19.030000",
     "updated_date": "2026-06-10T21:33:19.030000"
@@ -1470,7 +1470,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/97a0fa966_1001906637.png",
+    "image_url": "/img/97a0fa966_1001906637.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:32:14.469000",
     "updated_date": "2026-06-10T21:32:14.469000"
@@ -1482,7 +1482,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/8f5a46f51_1001906638.png",
+    "image_url": "/img/8f5a46f51_1001906638.webp",
     "in_stock": true,
     "created_date": "2026-06-10T21:31:15.052000",
     "updated_date": "2026-06-10T21:31:15.052000"
@@ -1494,7 +1494,7 @@
     "price": 33,
     "points_price": 1750,
     "category": "home_appliance",
-    "image_url": "/img/78802e2b1_1001905495.png",
+    "image_url": "/img/78802e2b1_1001905495.webp",
     "in_stock": true,
     "created_date": "2026-06-10T12:24:29.586000",
     "updated_date": "2026-06-10T12:28:55.935000"
@@ -1506,7 +1506,7 @@
     "price": 15,
     "points_price": 1500,
     "category": "home_essentials",
-    "image_url": "/img/03f73fabd_1001896728.png",
+    "image_url": "/img/03f73fabd_1001896728.webp",
     "in_stock": true,
     "created_date": "2026-06-07T22:57:21.572000",
     "updated_date": "2026-06-07T22:57:42.022000"
@@ -1518,7 +1518,7 @@
     "price": 10,
     "points_price": 500,
     "category": "must_have",
-    "image_url": "/img/caae39973_1001890830.png",
+    "image_url": "/img/caae39973_1001890830.webp",
     "in_stock": true,
     "created_date": "2026-06-07T22:55:46.694000",
     "updated_date": "2026-06-07T22:55:46.694000"
@@ -1530,7 +1530,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "home_essentials",
-    "image_url": "/img/76dad3e42_1001890831.png",
+    "image_url": "/img/76dad3e42_1001890831.webp",
     "in_stock": true,
     "created_date": "2026-06-07T22:54:09.691000",
     "updated_date": "2026-06-07T22:54:09.691000"
@@ -1542,7 +1542,7 @@
     "price": 25,
     "points_price": 1500,
     "category": "home_appliance",
-    "image_url": "/img/729116fd3_1001899111.png",
+    "image_url": "/img/729116fd3_1001899111.webp",
     "in_stock": true,
     "created_date": "2026-06-07T22:47:06.666000",
     "updated_date": "2026-06-07T22:47:06.666000"
@@ -1554,7 +1554,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "home_appliance",
-    "image_url": "/img/083808bf1_1001822705.jpg",
+    "image_url": "/img/083808bf1_1001822705.webp",
     "in_stock": true,
     "created_date": "2026-06-05T22:07:13.502000",
     "updated_date": "2026-06-05T22:07:13.502000"
@@ -1566,7 +1566,7 @@
     "price": 35,
     "points_price": 1750,
     "category": "home_appliance",
-    "image_url": "/img/5167c5383_1001822707.jpg",
+    "image_url": "/img/5167c5383_1001822707.webp",
     "in_stock": true,
     "created_date": "2026-06-05T22:05:53.999000",
     "updated_date": "2026-06-05T22:05:53.999000"
@@ -1578,7 +1578,7 @@
     "price": 29,
     "points_price": 1500,
     "category": "home_appliance",
-    "image_url": "/img/81e3d29c1_1001822755.jpg",
+    "image_url": "/img/81e3d29c1_1001822755.webp",
     "in_stock": true,
     "created_date": "2026-06-05T22:04:05.544000",
     "updated_date": "2026-06-05T22:04:05.544000"
@@ -1590,7 +1590,7 @@
     "price": 15,
     "points_price": 750,
     "category": "new_gadgets",
-    "image_url": "/img/647c0e1f9_1001833580.jpg",
+    "image_url": "/img/647c0e1f9_1001833580.webp",
     "in_stock": true,
     "created_date": "2026-06-05T22:02:49.967000",
     "updated_date": "2026-06-05T22:02:49.967000"
@@ -1602,7 +1602,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/a5382e6bc_1001833538.jpg",
+    "image_url": "/img/a5382e6bc_1001833538.webp",
     "in_stock": true,
     "created_date": "2026-06-05T22:00:07.173000",
     "updated_date": "2026-06-05T22:00:07.173000"
@@ -1614,7 +1614,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "must_have",
-    "image_url": "/img/7688a02e7_1001838099.jpg",
+    "image_url": "/img/7688a02e7_1001838099.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:58:03.479000",
     "updated_date": "2026-08-25T21:28:06.713000"
@@ -1626,7 +1626,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_appliance",
-    "image_url": "/img/980a27e07_1001872103.jpg",
+    "image_url": "/img/980a27e07_1001872103.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:55:43.970000",
     "updated_date": "2026-06-05T21:55:43.970000"
@@ -1638,7 +1638,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "must_have",
-    "image_url": "/img/2b83b0f88_1001872257.jpg",
+    "image_url": "/img/2b83b0f88_1001872257.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:54:33.767000",
     "updated_date": "2026-06-05T21:54:33.767000"
@@ -1650,7 +1650,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "home_appliance",
-    "image_url": "/img/dd4cc38b4_1001872092.jpg",
+    "image_url": "/img/dd4cc38b4_1001872092.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:51:38.987000",
     "updated_date": "2026-06-05T21:53:16.229000"
@@ -1662,7 +1662,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/8c749ee99_1001886881.png",
+    "image_url": "/img/8c749ee99_1001886881.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:48:22.802000",
     "updated_date": "2026-06-05T21:48:22.802000"
@@ -1674,7 +1674,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/472f95f73_1001886879.png",
+    "image_url": "/img/472f95f73_1001886879.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:46:00.121000",
     "updated_date": "2026-06-06T23:48:25.706000"
@@ -1686,7 +1686,7 @@
     "price": 19,
     "points_price": 1000,
     "category": "new_gadgets",
-    "image_url": "/img/467111594_1001886912.png",
+    "image_url": "/img/467111594_1001886912.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:44:37.967000",
     "updated_date": "2026-06-05T21:44:37.967000"
@@ -1698,7 +1698,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/206d26832_1001886913.png",
+    "image_url": "/img/206d26832_1001886913.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:40:45.284000",
     "updated_date": "2026-06-05T21:40:45.284000"
@@ -1710,7 +1710,7 @@
     "price": 15,
     "points_price": 750,
     "category": "must_have",
-    "image_url": "/img/2918d53e3_1001886914.png",
+    "image_url": "/img/2918d53e3_1001886914.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:39:20.625000",
     "updated_date": "2026-06-05T21:41:01.301000"
@@ -1722,7 +1722,7 @@
     "price": 25,
     "points_price": 1250,
     "category": "must_have",
-    "image_url": "/img/cc19c0d00_1001890816.png",
+    "image_url": "/img/cc19c0d00_1001890816.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:36:10.468000",
     "updated_date": "2026-06-05T21:36:10.468000"
@@ -1734,7 +1734,7 @@
     "price": 10,
     "points_price": 500,
     "category": "new_gadgets",
-    "image_url": "/img/295646483_1001891586.png",
+    "image_url": "/img/295646483_1001891586.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:33:49.469000",
     "updated_date": "2026-06-05T21:33:49.469000"
@@ -1746,7 +1746,7 @@
     "price": 60,
     "points_price": 3000,
     "category": "home_essentials",
-    "image_url": "/img/13d9d3bb5_1001891434.png",
+    "image_url": "/img/13d9d3bb5_1001891434.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:30:56.300000",
     "updated_date": "2026-06-05T21:30:56.300000"
@@ -1758,7 +1758,7 @@
     "price": 10,
     "points_price": 500,
     "category": "home_essentials",
-    "image_url": "/img/58ac7ce08_1001892912.png",
+    "image_url": "/img/58ac7ce08_1001892912.webp",
     "in_stock": true,
     "created_date": "2026-06-05T21:28:42.963000",
     "updated_date": "2026-06-05T21:34:04.573000"
@@ -1770,7 +1770,7 @@
     "price": 29,
     "points_price": 1500,
     "category": "home_appliance",
-    "image_url": "/img/85a478faf_1001853862.jpg",
+    "image_url": "/img/85a478faf_1001853862.webp",
     "in_stock": true,
     "created_date": "2026-05-22T23:27:49.934000",
     "updated_date": "2026-06-05T21:34:21.078000"
@@ -1782,7 +1782,7 @@
     "price": 15,
     "points_price": 750,
     "category": "home_essentials",
-    "image_url": "/img/209c704fa_1001861063.jpg",
+    "image_url": "/img/209c704fa_1001861063.webp",
     "in_stock": true,
     "created_date": "2026-05-22T07:25:31.910000",
     "updated_date": "2026-06-05T21:34:46.581000"

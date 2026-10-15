@@ -68,7 +68,7 @@ function serveLocalStore() {
         }
         if (req.method === 'GET' && url === '/api/settings') {
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify(defaults))
+          res.end(JSON.stringify(defaults.filter((row) => row.setting_key !== 'admin_password')))
           return
         }
         if (req.method === 'POST' && url === '/api/settings') {
@@ -112,7 +112,7 @@ function serveLocalStore() {
               return
             }
             res.statusCode = 401
-            res.end(JSON.stringify({ error: 'Incorrect password. Local starter password is 1234.' }))
+            res.end(JSON.stringify({ error: 'Incorrect password' }))
           })
           return
         }

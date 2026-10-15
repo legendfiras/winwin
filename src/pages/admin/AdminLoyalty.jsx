@@ -64,7 +64,8 @@ export default function AdminLoyalty() {
 
   return (
     <AdminLayout>
-      <h1 className="mb-4 font-heading text-xl font-bold sm:mb-6 sm:text-2xl">Loyalty memberships</h1>
+      <h1 className="mb-1 font-heading text-xl font-bold sm:text-2xl">Loyalty memberships</h1>
+      <p className="mb-4 text-sm text-muted-foreground">This is the only screen that activates a card or changes its dates. A new activation lasts 30 days.</p>
       <div className="flex gap-2 mb-4 flex-wrap">
         {FILTERS.map(f => (
           <Button key={f.key} size="sm" variant={filter === f.key ? 'default' : 'outline'} onClick={() => setFilter(f.key)}>

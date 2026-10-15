@@ -173,6 +173,64 @@ export function categoryMatches(productCategory, filterKey) {
   return keys.includes(productCategory) || keys.includes(canonical);
 }
 
+export function parseStringList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean);
+  } catch {
+    /* plain text */
+  }
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+export function productCategoryList(product) {
+  const list = [];
+  const add = (value) => {
+    if (value == null || String(value).trim() === '') return;
+    const key = normalizeCategory(value);
+    if (!key || list.includes(key)) return;
+    list.push(key);
+  };
+  for (const value of parseStringList(product?.categories)) add(value);
+  add(product?.category);
+  const override = product?.id ? PRODUCT_CATEGORY_OVERRIDES[product.id] : null;
+  if (override) return [override, ...list.filter((key) => key !== override)];
+  return list.length ? list : ['must_have'];
+}
+
+export function productTags(product) {
+  const seen = new Set();
+  const tags = [];
+  for (const raw of parseStringList(product?.tags)) {
+    const tag = String(raw).replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+    if (!tag) continue;
+    const id = tag.toLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    tags.push(tag);
+    if (tags.length === 10) break;
+  }
+  return tags;
+}
+
+export function sanitizeProductMeta(input) {
+  const categories = productCategoryList(input).filter((key) => CANONICAL_SET.has(key));
+  const list = categories.length ? categories : ['must_have'];
+  return {
+    category: list[0],
+    categories: list,
+    tags: productTags(input),
+  };
+}
+
+export function productMatchesCategory(product, filterKey) {
+  const keys = categoryKeysForFilter(filterKey);
+  if (!keys) return true;
+  return productCategoryList(product).some((key) => keys.includes(key) || keys.includes(normalizeCategory(key)));
+}
+
 export function matchesSearch(product, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;
@@ -180,7 +238,8 @@ export function matchesSearch(product, query) {
     product?.name,
     product?.description,
     product?.category,
-    categoryLabel(product?.category),
+    ...productCategoryList(product).map((key) => `${key} ${categoryLabel(key)}`),
+    ...productTags(product),
     product?.brand,
   ]
     .filter(Boolean)
@@ -212,8 +271,9 @@ export function sortProducts(products, sort) {
 export function countCategories(products) {
   const counts = {};
   for (const product of Array.isArray(products) ? products : []) {
-    const key = resolveProductCategory(product);
-    counts[key] = (counts[key] || 0) + 1;
+    for (const key of productCategoryList(product)) {
+      counts[key] = (counts[key] || 0) + 1;
+    }
   }
   return counts;
 }
@@ -230,13 +290,18 @@ export function visibleCategoryFilters(counts) {
 }
 
 export function applyCatalogQuery(products, { cat, q, sort, page, limit } = {}) {
-  const source = (Array.isArray(products) ? products : []).map((product) => ({
-    ...product,
-    category: resolveProductCategory(product),
-  }));
+  const source = (Array.isArray(products) ? products : []).map((product) => {
+    const categories = productCategoryList(product);
+    return {
+      ...product,
+      category: categories[0],
+      categories,
+      tags: productTags(product),
+    };
+  });
   const perPage = Math.min(100, Math.max(1, Number(limit) || PRODUCTS_PER_PAGE));
   const filtered = sortProducts(
-    source.filter((product) => categoryMatches(product.category, cat) && matchesSearch(product, q)),
+    source.filter((product) => productMatchesCategory(product, cat) && matchesSearch(product, q)),
     sort,
   );
   const total = filtered.length;
