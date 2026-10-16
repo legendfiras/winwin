@@ -734,32 +734,25 @@ async function ensureCatalog(env, request) {
   } catch {
     /* products table may not exist yet */
   }
-  const res = await fetchAsset(env, request, '/data/products.json');
-  if (res.ok) {
-    const text = await res.text();
-    const hash = await sha256(text);
-    const row = await env.DB.prepare('SELECT setting_value FROM settings WHERE setting_key = ?')
-      .bind('catalog_hash')
-      .first();
-    if (row?.setting_value !== hash) {
+  // The live database is the owner's catalog: products he edits, re-photographs or
+  // deletes in the admin must never be overwritten by the repo copy. The bundled
+  // products.json only seeds a brand-new, empty database.
+  let existing = null;
+  try {
+    existing = await env.DB.prepare('SELECT COUNT(*) AS n FROM products').first();
+  } catch {
+    existing = null;
+  }
+  if (existing && Number(existing.n) === 0) {
+    const res = await fetchAsset(env, request, '/data/products.json');
+    if (res.ok) {
       let products;
       try {
-        products = JSON.parse(text);
+        products = JSON.parse(await res.text());
       } catch {
         products = null;
       }
-      if (products) {
-        await upsertProducts(env, products);
-        if (row) {
-          await env.DB.prepare('UPDATE settings SET setting_value = ? WHERE setting_key = ?')
-            .bind(hash, 'catalog_hash')
-            .run();
-        } else {
-          await env.DB.prepare('INSERT INTO settings (setting_key, setting_value, id) VALUES (?, ?, ?)')
-            .bind('catalog_hash', hash, randomId())
-            .run();
-        }
-      }
+      if (products) await upsertProducts(env, products);
     }
   }
   try {
@@ -1075,6 +1068,18 @@ function imageResponse(body, contentType) {
   return new Response(body, { headers });
 }
 
+function imageNameCandidates(filename) {
+  const dot = filename.lastIndexOf('.');
+  if (dot <= 0) return [filename];
+  const base = filename.slice(0, dot);
+  const ext = filename.slice(dot).toLowerCase();
+  if (!['.webp', '.jpg', '.jpeg', '.png'].includes(ext)) return [filename];
+  const siblings = ['.webp', '.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG']
+    .map((e) => `${base}${e}`)
+    .filter((name) => name !== filename);
+  return [filename, ...siblings];
+}
+
 async function handleImage(request, env, ctx) {
   const cache = caches.default;
   const cached = await cache.match(request);
@@ -1085,6 +1090,32 @@ async function handleImage(request, env, ctx) {
     return new Response('Not found', { status: 404 });
   }
 
+  // Product photos live in Cloudflare storage (KV, plus R2 when bound), not in the
+  // repo. Catalog rows may name a photo by its original .jpg/.png name or by the
+  // .webp name from the conversion, so try the sibling names too.
+  for (const name of imageNameCandidates(filename)) {
+    if (env.IMAGES) {
+      const data = await env.IMAGES.get(name, { type: 'arrayBuffer' });
+      if (data && data.byteLength > 0) {
+        const response = imageResponse(data, mimeFor(name));
+        ctx?.waitUntil?.(cache.put(request, response.clone()));
+        return response;
+      }
+    }
+
+    if (env.PRODUCT_IMAGES) {
+      const object =
+        (await env.PRODUCT_IMAGES.get(`products/${name}`)) ||
+        (await env.PRODUCT_IMAGES.get(name));
+      if (object) {
+        const contentType = object.httpMetadata?.contentType || mimeFor(name);
+        const response = imageResponse(object.body, contentType);
+        ctx?.waitUntil?.(cache.put(request, response.clone()));
+        return response;
+      }
+    }
+  }
+
   const asset = await fetchAsset(env, request, `/img/${filename}`);
   const type = asset.headers.get('content-type') || '';
   if (asset.ok && !type.includes('text/html')) {
@@ -1093,27 +1124,6 @@ async function handleImage(request, env, ctx) {
     const response = new Response(asset.body, { status: 200, headers });
     ctx?.waitUntil?.(cache.put(request, response.clone()));
     return response;
-  }
-
-  if (env.IMAGES) {
-    const data = await env.IMAGES.get(filename, { type: 'arrayBuffer' });
-    if (data && data.byteLength > 0) {
-      const response = imageResponse(data, mimeFor(filename));
-      ctx?.waitUntil?.(cache.put(request, response.clone()));
-      return response;
-    }
-  }
-
-  if (env.PRODUCT_IMAGES) {
-    const object =
-      (await env.PRODUCT_IMAGES.get(`products/${filename}`)) ||
-      (await env.PRODUCT_IMAGES.get(filename));
-    if (object) {
-      const contentType = object.httpMetadata?.contentType || mimeFor(filename);
-      const response = imageResponse(object.body, contentType);
-      ctx?.waitUntil?.(cache.put(request, response.clone()));
-      return response;
-    }
   }
 
   return new Response('Not found', { status: 404 });

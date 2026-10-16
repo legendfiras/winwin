@@ -44,3 +44,6 @@ New folder/downloaded_images/
 downloaded_images/
 assets/products/*
 !assets/products/.gitkeep
+# Product photos live in Cloudflare storage (KV / R2), never in the repo, so a
+# deploy can't replace photos the owner changed in the admin.
+public/img/
