@@ -43,7 +43,7 @@ Local deploy after `npx wrangler login`:
 npm run cf:deploy
 ```
 
-Product photos in `public/img` are copied into the build and served at `/img/<filename>`. The original CSV and download folder stay gitignored. Optional R2 upload: `npm run cf:bucket` then `npm run cf:images` (requires R2 enabled on the account).
+Product photos are not in the repo. They live in Cloudflare storage (the `IMAGES` KV namespace, and the `PRODUCT_IMAGES` R2 bucket when bound) and the Worker serves them at `/img/<filename>`. The live D1 database is the owner's catalog: `public/data/products.json` only seeds an empty database, so deploys never undo the owner's admin edits. `npm run cf:images [folder]` uploads photos to KV and skips any that are already there. See `RECOVERY.md` to restore the owner's catalog after the October 15 deploy.
 
 **Publish to Base44**
 

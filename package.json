@@ -16,6 +16,7 @@
     "cf:bucket": "wrangler r2 bucket create winwin-product-images",
     "cf:images": "node scripts/upload-images-kv.mjs",
     "cf:images-r2": "node scripts/upload-product-images.mjs",
+    "recover:products": "node scripts/recover-owner-products.mjs",
     "cf:deploy": "wrangler deploy"
   },
   "dependencies": {

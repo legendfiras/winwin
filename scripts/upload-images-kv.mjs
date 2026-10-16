@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 
 const NAMESPACE_ID = '2224090d2ada49b290b846af15271c92';
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
-const CANDIDATE_DIRS = [
+// Pass a folder to upload from it instead, e.g. a restored copy of the old repo photos.
+const CANDIDATE_DIRS = process.argv[2] ? [process.argv[2]] : [
   join('public', 'img'),
   join('assets', 'products'),
   join('New folder', 'downloaded_images'),
@@ -20,6 +21,26 @@ function run(cmd, args) {
       else reject(new Error(`${cmd} ${args.join(' ')} exited ${code}`));
     });
   });
+}
+
+function capture(cmd, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'inherit'], shell: true });
+    let out = '';
+    child.stdout.on('data', (chunk) => { out += chunk; });
+    child.on('exit', (code) => {
+      if (code === 0) resolve(out);
+      else reject(new Error(`${cmd} ${args.join(' ')} exited ${code}`));
+    });
+  });
+}
+
+// Keys already in KV include the owner's admin uploads; never overwrite them.
+async function existingKeys() {
+  const out = await capture('npx', ['wrangler', 'kv', 'key', 'list', '--namespace-id', NAMESPACE_ID, '--remote']);
+  const start = out.indexOf('[');
+  const keys = JSON.parse(start >= 0 ? out.slice(start) : '[]');
+  return new Set(keys.map((k) => k.name));
 }
 
 async function findImages() {
@@ -41,9 +62,16 @@ async function findImages() {
 }
 
 async function main() {
-  const files = await findImages();
-  if (files.size === 0) {
+  const found = await findImages();
+  if (found.size === 0) {
     throw new Error('No product images found to upload');
+  }
+  const skip = await existingKeys();
+  const files = new Map([...found].filter(([name]) => !skip.has(name)));
+  console.log(`${found.size - files.size} images already in KV are left untouched.`);
+  if (files.size === 0) {
+    console.log('Nothing new to upload.');
+    return;
   }
   console.log(`Uploading ${files.size} images to Cloudflare KV IMAGES`);
 
